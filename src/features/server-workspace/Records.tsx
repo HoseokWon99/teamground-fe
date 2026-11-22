@@ -1,3 +1,4 @@
+import { Play } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,11 @@ export function OccurrencePage() {
       </Button>
       {occurrence.data && (
         <>
+          <OccurrenceContext
+            key={occurrence.data.id}
+            teamId={teamId}
+            occurrence={occurrence.data}
+          />
           <p>
             {occurrence.data.sequence}회 ·{" "}
             {displayTime(occurrence.data.startsAt)} ~{" "}
@@ -74,13 +80,103 @@ export function OccurrencePage() {
         <h2>연습 영상</h2>
         <LoadState resource={videos} />
         {videos.data?.length === 0 && <p>이 회차에 등록된 영상이 없습니다.</p>}
-        {videos.data?.map((v) => (
-          <Link key={v.id} to={`/teams/${teamId}/videos/${v.id}`}>
-            {v.title} · {v.authorDisplayName}
-          </Link>
-        ))}
+        <div className="video-card-grid">
+          {videos.data?.map((v) => (
+            <Link
+              className="card video-card"
+              key={v.id}
+              to={`/teams/${teamId}/videos/${v.id}`}
+            >
+              <span className="video-card-mark">
+                <Play aria-hidden="true" />
+              </span>
+              <strong>{v.title}</strong>
+              <span>{v.authorDisplayName}</span>
+            </Link>
+          ))}
+        </div>
       </section>
     </>
+  );
+}
+function OccurrenceContext({
+  teamId,
+  occurrence,
+}: {
+  teamId: string;
+  occurrence: Occurrence;
+}) {
+  const members = useResource<Member[]>(`${teamPath(teamId)}/members`);
+  const date = localTime(occurrence.startsAt).slice(0, 10);
+  const siblings = useResource<Occurrence[]>(
+    `${teamPath(teamId)}/occurrences?${dateRange(dateAfter(-366, date), dateAfter(366, date))}`,
+  );
+  const sequence =
+    siblings.data
+      ?.filter(
+        (o) =>
+          o.scheduleId === occurrence.scheduleId &&
+          Boolean(occurrence.scheduleId),
+      )
+      .sort((a, b) => a.sequence - b.sequence) ?? [];
+  const index = sequence.findIndex((o) => o.id === occurrence.id);
+  const previous = index > 0 ? sequence[index - 1] : undefined;
+  const next = index >= 0 ? sequence[index + 1] : undefined;
+  return (
+    <section className="card stack" style={{ padding: 20 }}>
+      <h2>참석 가능 정보</h2>
+      <p className="muted">
+        확정·변경 당시의 일정 확인 결과입니다. 실제 참석 응답과 다를 수
+        있습니다.
+      </p>
+      <LoadState resource={members} />
+      <ul className="member-status-list">
+        {occurrence.members.map((m) => (
+          <li key={m.membershipId}>
+            <strong>
+              {members.data?.find(
+                (member) => member.membershipId === m.membershipId,
+              )?.displayName ?? "이전 팀 멤버"}
+            </strong>
+            <p>
+              {
+                {
+                  AVAILABLE: "참석 가능",
+                  UNAVAILABLE: "참석 불가",
+                  UNKNOWN: "확인 필요",
+                }[m.availability]
+              }
+              {m.required ? " · 필수 멤버" : ""}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <LoadState resource={siblings} />
+      <nav className="row" aria-label="같은 정기 일정 회차 탐색">
+        {previous ? (
+          <Button asChild variant="outline">
+            <Link to={`/teams/${teamId}/occurrences/${previous.id}`}>
+              이전 회차 · {previous.sequence}회
+            </Link>
+          </Button>
+        ) : (
+          <span className="muted">조회 범위에 이전 회차 없음</span>
+        )}
+        {next ? (
+          <Button asChild variant="outline">
+            <Link to={`/teams/${teamId}/occurrences/${next.id}`}>
+              다음 회차 · {next.sequence}회
+            </Link>
+          </Button>
+        ) : (
+          <span className="muted">조회 범위에 다음 회차 없음</span>
+        )}
+      </nav>
+      <p className="muted">
+        현재 회차 전후 1년의 같은 정기 일정을 탐색합니다. 다른 기간은 팀
+        달력에서 확인하세요.
+      </p>
+    </section>
   );
 }
 function MoveForm({
@@ -203,8 +299,12 @@ function MoveForm({
       <Button
         disabled={action.busy}
         variant="outline"
-        onClick={() => {
-          if (window.confirm("이 회차를 취소할까요? 기존 기록은 유지됩니다."))
+        onClick={async () => {
+          if (
+            await action.confirm(
+              "이 회차를 취소할까요? 기존 기록은 유지됩니다.",
+            )
+          )
             void action.run(async () => {
               await api(
                 `${base}/occurrences/${occurrence.id}/cancel`,
@@ -308,12 +408,12 @@ function VideoContent({
       {author && (
         <Button
           variant="outline"
-          onClick={() => {
+          onClick={async () => {
             if (
               !editing ||
-              window.confirm(
+              (await action.confirm(
                 "편집을 닫으면 저장하지 않은 내용을 버립니다. 계속할까요?",
-              )
+              ))
             )
               setEditing((v) => !v);
           }}
@@ -338,9 +438,9 @@ function VideoContent({
         <Button
           variant="outline"
           disabled={action.busy}
-          onClick={() => {
+          onClick={async () => {
             if (
-              window.confirm(
+              await action.confirm(
                 "영상을 삭제하면 연결된 모든 피드백도 삭제됩니다. 외부 원본 영상은 삭제하지 않습니다. 계속할까요?",
               )
             )
@@ -538,12 +638,12 @@ function FeedbackRow({
       {author && (
         <Button
           variant="outline"
-          onClick={() => {
+          onClick={async () => {
             if (
               !editing ||
-              window.confirm(
+              (await action.confirm(
                 "편집을 닫으면 저장하지 않은 내용을 버립니다. 계속할까요?",
-              )
+              ))
             )
               setEditing((v) => !v);
           }}
@@ -585,8 +685,8 @@ function FeedbackRow({
         <Button
           variant="outline"
           disabled={action.busy}
-          onClick={() => {
-            if (window.confirm("이 피드백을 삭제할까요?"))
+          onClick={async () => {
+            if (await action.confirm("이 피드백을 삭제할까요?"))
               void action.run(async () => {
                 await api(path, undefined, {
                   method: "DELETE",

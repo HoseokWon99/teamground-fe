@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { useConfirmAction } from "./ConfirmAction";
 import {
   useCallback,
   useEffect,
@@ -61,6 +63,7 @@ export function useResource<T>(path: string) {
   };
 }
 export function useAction() {
+  const confirm = useConfirmAction();
   const { setProfile } = useSession();
   const lock = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -82,7 +85,7 @@ export function useAction() {
       setBusy(false);
     }
   };
-  return { busy, error, run };
+  return { busy, error, run, confirm };
 }
 export function LoadState({
   resource,
@@ -94,7 +97,10 @@ export function LoadState({
       {resource.loading && <p role="status">불러오는 중…</p>}
       <ErrorNotice message={resource.error} />
       {resource.error && (
-        <Button onClick={() => void resource.reload()}>다시 불러오기</Button>
+        <div className="row">
+          <Button onClick={() => void resource.reload()}>다시 불러오기</Button>
+          <Link to="/teams">내 팀 목록으로</Link>
+        </div>
       )}
     </>
   );

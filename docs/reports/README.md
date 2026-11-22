@@ -10,8 +10,10 @@
 | 2026-11-22 · 6차 | PR #5 머지·백엔드 연동 준비 | [별도 준비 PR #6](https://github.com/HoseokWon99/teamground-fe/pull/6) | Draft, 실제 연결·테스트 보류 |
 | 2026-11-22 · 배포 파이프라인 | GitHub Actions Vercel Production/Preview 배포 | [구현·설정·정적 리뷰](frontend-2026-11-22-deployment/README.md) | 토큰 등록·활성화·실행 검증 대기 |
 
-최신 배포 파이프라인의 구성·GitHub 설정·활성화 조건은 배포 기록에서 확인한다. PR #5 머지는 main `9a902b1`에 반영됐으며 연동 준비 문서는 별도 Draft PR #6에서 관리한다. 이전 회차의 미머지 문구는 당시 검토 시점의 이력이다. 백엔드 실제 연결·테스트는 보류 중이다. 각 회차 문서의 검증 결과는 명시된 커밋과 실행 범위에 한정한다.
+최신 배포 파이프라인의 구성·GitHub 설정·활성화 조건은 배포 기록에서 확인한다. PR #5 머지는 main `9a902b1`에 반영됐으며 연동 준비 문서는 별도 Draft PR #6에서 관리한다. 이전 회차의 미머지 문구는 당시 검토 시점의 이력이다. 이후 실제 API 연동은 PR #10으로 main에 머지됐으며, 아래 최신 실제 연동 및 UI 완성 기록을 따른다. 각 회차 문서의 검증 결과는 명시된 커밋과 실행 범위에 한정한다.
 
 이전 프로토타입: [2026-10-11 통합 보고서](integration.md).
 
 - [2026-11-22 실제 API 연동](frontend-2026-11-22-api-integration/README.md)
+
+- [2026-11-22 실제 서비스 UI 완성](frontend-2026-11-22-ui-completion/README.md)

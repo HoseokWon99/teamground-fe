@@ -22,6 +22,8 @@ describe("server authentication", () => {
     ])
       expect(safeReturnTo(path)).toBe("/teams");
     expect(safeReturnTo("/teams/abc")).toBe("/teams/abc");
+    expect(safeReturnTo("/account")).toBe("/account");
+    expect(safeReturnTo("/account?token=secret")).toBe("/teams");
     expect(safeReturnTo("/invite/abc_123")).toBe("/teams");
   });
   it("gets fresh CSRF before each mutation and uses cookie credentials", async () => {

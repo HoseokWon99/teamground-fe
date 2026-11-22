@@ -91,7 +91,7 @@ function RequestPage({
       <Button
         variant="outline"
         disabled={action.busy || request.loading}
-        onClick={() => {
+        onClick={async () => {
           setCandidates(null);
           void request.reload();
         }}
@@ -100,6 +100,13 @@ function RequestPage({
       </Button>
       {r && (
         <>
+          <p className="badge">
+            {r.status === "CONFIRMED"
+              ? "확정 완료"
+              : r.status === "SELECTED"
+                ? "후보 선택 완료"
+                : "조율 중"}
+          </p>
           <p>
             {r.conditions.dateFrom} ~ {r.conditions.dateTo} ·{" "}
             {r.conditions.durationMinutes}분 ·{" "}
@@ -123,12 +130,12 @@ function RequestPage({
                 <Button
                   variant="outline"
                   disabled={action.busy || request.loading}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
                       !editing ||
-                      window.confirm(
+                      (await action.confirm(
                         "편집을 닫으면 저장하지 않은 내용을 버립니다. 계속할까요?",
-                      )
+                      ))
                     )
                       setEditing((v) => !v);
                   }}
@@ -169,72 +176,82 @@ function RequestPage({
                 추천 후보 조회
               </Button>
               {candidates?.length === 0 && (
-                <p>
+                <p role="status">
                   현재 조건을 만족하는 후보가 없습니다. 필수 멤버의 일정 입력
                   완료 여부와 조건을 확인해 주세요. 조건은 자동으로 완화되지
                   않습니다.
                 </p>
               )}
-              {candidates?.map((candidate) => (
-                <article
-                  className="card stack"
-                  style={{ padding: 20 }}
-                  key={candidate.id}
-                >
-                  <h2>
-                    {
-                      ["", "월", "화", "수", "목", "금", "토", "일"][
-                        candidate.weekday
-                      ]
-                    }
-                    요일 {candidate.localStart}
-                  </h2>
-                  <p>
-                    회차별 최소 {candidate.score.minimumAvailableMembers}명 가능
-                    · {candidate.occurrences.length}회
-                  </p>
-                  {candidate.occurrences.map((slot) => (
-                    <details key={slot.startsAt}>
-                      <summary>
-                        {displayTime(slot.startsAt)} ~{" "}
-                        {displayTime(slot.endsAt)}
-                      </summary>
-                      {slot.members.map((m) => (
-                        <p key={m.membershipId}>
-                          {members.data?.find(
-                            (entry) => entry.membershipId === m.membershipId,
-                          )?.displayName ?? "멤버"}{" "}
-                          · {statusLabels[m.availability]}{" "}
-                          {m.required ? "(필수)" : ""}
-                        </p>
-                      ))}
-                    </details>
-                  ))}
-                  {canEdit && (
-                    <Button
-                      disabled={
-                        action.busy ||
-                        request.loading ||
-                        r.selectedCandidateId === candidate.id
+              {candidates && candidates.length > 0 && (
+                <p role="status">
+                  추천 후보 {candidates.length}개 · 회차별 참석 가능 인원을
+                  비교해 보세요.
+                </p>
+              )}
+              <div className="candidate-grid">
+                {candidates?.map((candidate) => (
+                  <article
+                    className="card stack"
+                    style={{ padding: 20 }}
+                    key={candidate.id}
+                  >
+                    <h2>
+                      {
+                        ["", "월", "화", "수", "목", "금", "토", "일"][
+                          candidate.weekday
+                        ]
                       }
-                      onClick={() =>
-                        void action.run(async () => {
-                          await api(
-                            `${base}/selection`,
-                            { candidateId: candidate.id },
-                            { method: "PUT", version: r.version },
-                          );
-                          await request.reload();
-                        })
-                      }
-                    >
-                      {r.selectedCandidateId === candidate.id
-                        ? "선택한 후보"
-                        : "이 후보 선택"}
-                    </Button>
-                  )}
-                </article>
-              ))}
+                      요일 {candidate.localStart}
+                    </h2>
+                    <p>
+                      회차별 최소 {candidate.score.minimumAvailableMembers}명
+                      가능 · {candidate.occurrences.length}회 · 누적 참석 가능{" "}
+                      {candidate.score.totalAvailableMembers}명
+                    </p>
+                    {candidate.occurrences.map((slot) => (
+                      <details key={slot.startsAt}>
+                        <summary>
+                          {displayTime(slot.startsAt)} ~{" "}
+                          {displayTime(slot.endsAt)}
+                        </summary>
+                        {slot.members.map((m) => (
+                          <p key={m.membershipId}>
+                            {members.data?.find(
+                              (entry) => entry.membershipId === m.membershipId,
+                            )?.displayName ?? "멤버"}{" "}
+                            · {statusLabels[m.availability]}{" "}
+                            {m.required ? "(필수)" : ""}
+                          </p>
+                        ))}
+                      </details>
+                    ))}
+                    {canEdit && (
+                      <Button
+                        disabled={
+                          action.busy ||
+                          request.loading ||
+                          r.selectedCandidateId === candidate.id
+                        }
+                        onClick={() =>
+                          void action.run(async () => {
+                            await api(
+                              `${base}/selection`,
+                              { candidateId: candidate.id },
+                              { method: "PUT", version: r.version },
+                            );
+                            await request.reload();
+                          })
+                        }
+                      >
+                        {r.selectedCandidateId === candidate.id
+                          ? "선택한 후보"
+                          : "이 후보 선택"}
+                      </Button>
+                    )}
+                  </article>
+                ))}
+              </div>
+              {!owner && <p>팀 관리자가 최종 회차를 확정할 수 있습니다.</p>}
               {r.selectedCandidateId && (
                 <p>
                   후보가 선택되었습니다. 관리자가 최신 조건을 확인하고 확정할 수
@@ -244,9 +261,9 @@ function RequestPage({
               {owner && r.selectedCandidateId && (
                 <Button
                   disabled={action.busy || request.loading}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      window.confirm(
+                      await action.confirm(
                         "선택한 후보의 전체 회차를 확정할까요? 서버가 최신 일정과 멤버를 다시 검사합니다.",
                       )
                     )
@@ -462,6 +479,18 @@ function ConditionsForm({
             </label>
           ))}
         </fieldset>
+      )}
+      {conditions.windows.some(
+        (w) =>
+          w.end <= w.start ||
+          Number(w.end.slice(0, 2)) * 60 +
+            Number(w.end.slice(3)) -
+            (Number(w.start.slice(0, 2)) * 60 + Number(w.start.slice(3))) <
+            conditions.durationMinutes,
+      ) && (
+        <p className="error-notice" role="alert">
+          탐색 종료는 시작보다 늦고 연습 길이 이상이어야 합니다.
+        </p>
       )}
       <Button
         type="submit"
