@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { CalendarDays, Users, Grid2X2, Sprout, LogOut, Menu, SlidersHorizontal } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
 import { Modal } from "@/components/ui/modal";
+import { LegalFooter } from "@/components/LegalFooter";
 import { StorageNotice } from "@/components/StorageNotice";
 import { Button } from "@/components/ui/button";
 import { Avatar, ErrorNotice } from "@/components/common";
@@ -182,6 +183,7 @@ export default function WorkspaceLayout() {
             {demoLoaded && <DemoToolsBoundary><Suspense fallback={<p role="status">데모 도구를 준비하는 중…</p>}><DemoToolsContent /></Suspense></DemoToolsBoundary>}
           </details>
         </main>
+        <LegalFooter />
       </div>
     </>
   );

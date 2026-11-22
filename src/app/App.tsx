@@ -17,10 +17,12 @@ import {
 } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { LegalFooter } from "@/components/LegalFooter";
 import { StorageNotice } from "@/components/StorageNotice";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common";
 import { UnsavedChangesProvider } from "./unsaved-changes";
+const LegalPage = lazy(() => import("@/features/legal/pages"));
 const Layout = lazy(() => import("./WorkspaceLayout"));
 const LoginPage = lazy(() =>
   import("@/features/auth/pages").then((m) => ({ default: m.LoginPage })),
@@ -100,10 +102,13 @@ function TeamGuard() {
 }
 function PublicLayout() {
   return (
-    <main>
-      <StorageNotice />
-      <Outlet />
-    </main>
+    <>
+      <main>
+        <StorageNotice />
+        <Outlet />
+      </main>
+      <LegalFooter />
+    </>
   );
 }
 class ErrorBoundary extends Component<
@@ -134,6 +139,8 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route element={<UnsavedChangesProvider />}>
       <Route element={<PublicLayout />}>
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/invite/:token" element={<InvitePage />} />
       </Route>
