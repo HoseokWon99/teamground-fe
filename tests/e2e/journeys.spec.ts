@@ -32,6 +32,8 @@ test("관리자가 추천을 확정하고 로컬 영상을 재생한 뒤 피드�
   await expect(page.getByLabel("이 영상에 대한 피드백")).toHaveValue("");
   await page.reload();
   await expect(page.getByRole("heading", { name: "회귀 연습 영상" })).toBeVisible();
+  await video.evaluate(async (element: HTMLVideoElement) => { element.muted = true; await element.play(); });
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0);
   await expect(page.getByText("동선과 호흡을 다음 연습에서도 이어가요.", { exact: true })).toHaveCount(1);
   const editVideo = page.locator(".page-header").getByRole("button", { name: "수정", exact: true, includeHidden: true });
   await editVideo.click();

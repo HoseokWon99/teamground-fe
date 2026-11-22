@@ -34,3 +34,9 @@ node scripts/verify-video-upload.mjs
 스크린샷은 `output/video-upload/{upload-desktop,upload-mobile,playback-desktop,playback-mobile}.png`로 생성하며 Git에는 포함하지 않는다.
 
 S3Mock은 AWS 서명/ACL 정책을 강제하는 보안 환경이 아니다. AWS 실제 비공개 버킷/IAM 정책, 운영 배포, 100 MiB 전체 네트워크 전송, 10분 실제 경과 timeout은 실행하지 않았다. 용량 경계는 단위 테스트에서 검증했다. 전송 중단 흐름은 브라우저 네트워크 실패로 검증했으며 취소와 서버 커밋의 타이밍별 경합을 전부 재현한 것은 아니다.
+
+## WebKit 저장 호환 수정
+
+첫 CI에서 WebKit의 데모 파일 저장이 실패했다. 로컬 WebKit에서도 IndexedDB에 File/Blob을 직접 저장하면 `UnknownError: Error preparing Blob/File data to be stored in object store`가 발생했고, ArrayBuffer는 정상 저장됨을 확인했다. 데모 저장 형식을 파일 바이트(ArrayBuffer)+MIME으로 바꾸고 읽을 때 Blob으로 복원한다. 이전 Blob 저장값의 읽기 호환은 유지한다. 변환 중에는 파일 크기만큼의 추가 메모리가 일시적으로 필요하다(최대 100 MiB). 회귀 시나리오는 새로고침 후 피드백뿐 아니라 저장된 파일의 실제 재생도 다시 검증한다.
+
+수정 후 `pnpm typecheck`, `pnpm build` 통과. `pnpm exec playwright test --project=webkit --project=chromium --project=firefox tests/e2e/journeys.spec.ts --grep '관리자가'`는 세 브라우저 모두 통과했고, `pnpm exec playwright test --project=webkit` 전체 40개도 통과했다.
