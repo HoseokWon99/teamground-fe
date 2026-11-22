@@ -17,9 +17,9 @@
 | 단계 | 담당 | 결과물 | 상태 |
 |---|---|---|---|
 | 1. 미저장 유실 재현 | fe_navigation_qa | [01-baseline.md](01-baseline.md) | 완료·루트 검토 완료 |
-| 2. 공통 이동 보호 및 화면 적용 | fe_navigation | [02-implementation.md](02-implementation.md), 코드·회귀 검증·Draft PR | 구현·검증 중 |
-| 3. 독립 검증 | fe_navigation_qa | [04-independent-verification.md](04-independent-verification.md) | 대기 |
-| 4. 책임자 diff·HEAD·CI 리뷰 | 루트 | [03-review.md](03-review.md), 승인 HEAD와 Ready 기록 | 대기 |
+| 2. 공통 이동 보호 및 화면 적용 | fe_navigation / 재개 fe_navigation_finish | [02-implementation.md](02-implementation.md), 코드·회귀 검증·[PR #2](https://github.com/HoseokWon99/teamground-fe/pull/2) | 완료·소스 리뷰 완료 |
+| 3. 독립 검증 | fe_navigation_qa / 재개 fe_navigation_recheck | [04-independent-verification.md](04-independent-verification.md) | 완료·루트 근거 검토 완료 |
+| 4. 책임자 diff·HEAD·CI 리뷰 | 루트 | [03-review.md](03-review.md), 승인 HEAD와 Ready 기록 | 코드 HEAD 승인 완료 |
 
 ## 완료 기준
 
@@ -38,3 +38,11 @@
 기존 dirty `.gitignore`, `AGENTS.md`, 루트 `README.md`, `docs/prototype-plan.md`, `vercel.json`은 이번 작업에서 제외한다. 코드·테스트는 FE 서브에이전트가 담당하며 루트는 구조 검토·범위 결정·문서·리뷰를 담당한다.
 
 [1차 결과 및 리뷰](../frontend-2026-11-22/README.md)
+
+## 결과
+
+검토한 코드 HEAD는 `fec9e900e45d60b625267ca77bdf603c2ceea235`다. 타입 검사·기존 테스트 18개·빌드·회귀 스크립트 2개가 통과했다. 독립 담당이 이동 보호 스크립트, 실제 Chromium 새로고침 취소와 입력 유지, 라우팅 7개 항목, 기존 영상 모달 12개 항목을 재검증했다. 소스 5개 파일의 검증 전후 hash와 커밋 blob이 일치한다. 해당 HEAD의 Vercel 및 Preview Comments 체크가 성공했다.
+
+최종 문서 커밋 후 승인 HEAD·체크 재확인 및 Ready 전환 결과는 [PR #2 본문](https://github.com/HoseokWon99/teamground-fe/pull/2)에 기록한다. 선행 PR #1과 #2 모두 임의 머지하지 않는다. 백엔드 연동 없이 mock을 유지한다.
+
+다음 우선순위는 저장소 오류·복원 검증이며, 그다음 전체 화면 키보드·반응형 점검이다. 초대·개인일정 폼의 전역 이탈 보호와 타 브라우저 검증은 아직 완료하지 않았다.
