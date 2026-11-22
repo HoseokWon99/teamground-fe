@@ -7,6 +7,7 @@
 | 2026-11-22 · 3차 | 저장소 오류·복원, 남은 폼 보호, 모바일 메뉴·화면 사용성 | [단계별 기록](frontend-2026-11-22-hardening/README.md) · [PR #3](https://github.com/HoseokWon99/teamground-fe/pull/3) | main 머지 완료 |
 | 2026-11-22 · 4차 | 브라우저·접근성 후속 검증, 자동 회귀·CI | [단계별 기록 및 머지 이력](frontend-2026-11-22-quality/README.md) · [PR #4](https://github.com/HoseokWon99/teamground-fe/pull/4) | main 머지 완료 |
 | 2026-11-22 · 5차 | 모바일 달력·초기 로딩·접근성 마감 | [단계별 결과·리뷰](frontend-2026-11-22-final/README.md) | 구현·소스 리뷰 완료, 실제 Safari/VoiceOver/200% 확대는 환경 차단 |
+| 2026-11-22 · 배포 파이프라인 | GitHub Actions Vercel Production/Preview 배포 | [구현·설정·정적 리뷰](frontend-2026-11-22-deployment/README.md) | 토큰 등록·활성화·실행 검증 대기 |
 
 최신 진행 범위와 PR #4 머지는 5차 기록에서, PR 1~3의 순차 머지 SHA는 4차 기록에서 확인한다. 이전 회차의 미머지 문구는 당시 검토 시점의 이력이다. 백엔드 연동은 보류 중이다. 각 회차 문서의 검증 결과는 명시된 커밋과 실행 범위에 한정한다.
 
