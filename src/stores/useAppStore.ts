@@ -30,6 +30,7 @@ export function createAppStore(
       try {
         const target = getStorage();
         if (!target) {
+          preserveStoredData = true;
           setStorageWarning(unavailable);
           return null;
         }

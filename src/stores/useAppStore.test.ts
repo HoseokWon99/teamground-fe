@@ -198,6 +198,37 @@ describe("저장 데이터 복원", () => {
 });
 
 describe("저장소 실패와 명시적 복구", () => {
+  it("일시 부재 후 돌아온 저장소의 원본은 명시적 복구 전까지 보존한다", () => {
+    const data = createSeed();
+    data.teams[0].name = "기존 저장 데이터";
+    const raw = envelope(data);
+    const storage = memoryStorage(raw);
+    let available = false;
+    const store = createAppStore(() => (available ? storage : undefined));
+    store.setState({ sessionUserId: "jiwoo" });
+    available = true;
+    store.setState({ revision: 10 });
+    expect(store.getState().sessionUserId).toBe("jiwoo");
+    expect(storage.getItem(STORAGE_KEY)).toBe(raw);
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(store.replaceStoredData()).toBe(true);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!)).toEqual({
+      state: store.getState(),
+      version: 1,
+    });
+    store.setState({ revision: 11 });
+    expect(createAppStore(() => storage).getState().revision).toBe(11);
+    expect(storage.getItem("other-app")).toBe("keep");
+  });
+  it("읽기에 성공한 빈 저장소에는 자동 저장한다", () => {
+    const storage = memoryStorage();
+    const store = createAppStore(() => storage);
+    store.setState({ sessionUserId: "jiwoo" });
+    expect(createAppStore(() => storage).getState().sessionUserId).toBe(
+      "jiwoo",
+    );
+    expect(warning()).toBe("");
+  });
   it.each(["getter", "read", "absent"])(
     "%s 실패에도 메모리 상태를 변경할 수 있다",
     (kind) => {
