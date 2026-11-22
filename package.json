@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit && tsc -p tests/e2e/tsconfig.json",
+    "test": "vitest run src",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test:e2e": "pnpm build && playwright test",
+    "test:a11y": "pnpm build && playwright test --project=chromium --grep @a11y"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",
@@ -26,6 +29,8 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
@@ -37,6 +42,7 @@
     "vitest": "^3.0.0"
   },
   "engines": {
-    "node": ">=22.0.0"
-  }
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@10.29.1"
 }
