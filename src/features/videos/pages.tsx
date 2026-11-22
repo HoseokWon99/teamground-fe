@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -41,100 +41,125 @@ const videoSchema = z.object({
       "http 또는 https 영상 주소를 입력해 주세요.",
     ),
 });
-function VideoForm({
+function VideoFormModal({
   initial,
   onSave,
-  onCancel,
+  onClose,
 }: {
   initial?: Video;
   onSave: (title: string, url: string) => Promise<void>;
-  onCancel: () => void;
+  onClose: () => void;
 }) {
   const [error, setError] = useState("");
+  const submitting = useRef(false);
   const form = useForm<z.infer<typeof videoSchema>>({
     resolver: zodResolver(videoSchema),
     defaultValues: { title: initial?.title || "", url: initial?.url || "" },
   });
+  const { isDirty, isSubmitting } = form.formState;
+  function requestClose() {
+    if (submitting.current) return;
+    if (!isDirty || confirm("작성 중인 내용을 버릴까요?")) onClose();
+  }
   return (
-    <form
-      className="stack"
-      onSubmit={form.handleSubmit(async (v) => {
-        setError("");
-        try {
-          await onSave(v.title, v.url);
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "저장하지 못했습니다.");
-        }
-      })}
+    <Modal
+      open
+      onOpenChange={(open) => {
+        if (!open) requestClose();
+      }}
+      title={initial ? "영상 수정" : "연습 영상 추가"}
+      description={initial ? undefined : "이 회차에 연결할 영상을 등록하세요."}
     >
-      <div className="field">
-        <label htmlFor="video-title">영상 제목</label>
-        <input
-          id="video-title"
-          className="input"
-          placeholder="예: 1막 동선 리허설"
-          {...form.register("title")}
-        />
-        <span className="field-error">
-          {form.formState.errors.title?.message}
-        </span>
-      </div>
-      <div className="field">
-        <label htmlFor="video-url">영상 주소</label>
-        <input
-          id="video-url"
-          className="input"
-          placeholder="https://…"
-          {...form.register("url")}
-        />
-        <span className="field-error">
-          {form.formState.errors.url?.message}
-        </span>
-      </div>
-      <Button
-        variant="outline"
-        onClick={() => {
-          form.setValue("url", "/demo/rehearsal.webm", {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
-          if (!form.getValues("title"))
-            form.setValue("title", "움직임 스터디 · 데모 영상", {
-              shouldDirty: true,
-            });
+      <form
+        className="stack"
+        aria-busy={isSubmitting}
+        onSubmit={async (event) => {
+          event.preventDefault();
+          // Lock before async validation, including same-tick submit/dismiss events.
+          if (submitting.current) return;
+          submitting.current = true;
+          try {
+            await form.handleSubmit(async (v) => {
+              setError("");
+              try {
+                await onSave(v.title, v.url);
+                onClose();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "저장하지 못했습니다.");
+              }
+            })(event);
+          } finally {
+            submitting.current = false;
+          }
         }}
       >
-        <VideoIcon size={16} />
-        로컬 데모 영상 선택
-      </Button>
-      <p className="muted" style={{ fontSize: 12 }}>
-        외부 영상은 원본 서비스의 접근 설정이 적용됩니다. 데모 영상은 추상적인
-        움직임 연습용 샘플입니다. 피드백이 있는 영상은 주소를 변경할 수
-        없습니다.
-      </p>
-      <ErrorNotice message={error} />
-      <div className="row" style={{ justifyContent: "flex-end" }}>
+        <div className="field">
+          <label htmlFor="video-title">영상 제목</label>
+          <input
+            disabled={isSubmitting}
+            id="video-title"
+            className="input"
+            placeholder="예: 1막 동선 리허설"
+            {...form.register("title")}
+          />
+          <span className="field-error">
+            {form.formState.errors.title?.message}
+          </span>
+        </div>
+        <div className="field">
+          <label htmlFor="video-url">영상 주소</label>
+          <input
+            disabled={isSubmitting}
+            id="video-url"
+            className="input"
+            placeholder="https://…"
+            {...form.register("url")}
+          />
+          <span className="field-error">
+            {form.formState.errors.url?.message}
+          </span>
+        </div>
         <Button
-          variant="ghost"
+          disabled={isSubmitting}
+          variant="outline"
           onClick={() => {
-            if (
-              !form.formState.isDirty ||
-              confirm("작성 중인 내용을 버릴까요?")
-            )
-              onCancel();
+            form.setValue("url", "/demo/rehearsal.webm", {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+            if (!form.getValues("title"))
+              form.setValue("title", "움직임 스터디 · 데모 영상", {
+                shouldDirty: true,
+              });
           }}
         >
-          취소
+          <VideoIcon size={16} />
+          로컬 데모 영상 선택
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting
-            ? "저장 중…"
-            : initial
-              ? "변경 저장"
-              : "영상 추가"}
-        </Button>
-      </div>
-    </form>
+        <p className="muted" style={{ fontSize: 12 }}>
+          외부 영상은 원본 서비스의 접근 설정이 적용됩니다. 데모 영상은 추상적인
+          움직임 연습용 샘플입니다. 피드백이 있는 영상은 주소를 변경할 수
+          없습니다.
+        </p>
+        <ErrorNotice message={error} />
+        <div className="row" style={{ justifyContent: "flex-end" }}>
+          <Button
+            variant="ghost"
+            disabled={isSubmitting}
+            onClick={requestClose}
+          >
+            취소
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting
+              ? "저장 중…"
+              : initial
+                ? "변경 저장"
+                : "영상 추가"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 function useLoad() {
@@ -326,27 +351,14 @@ export function OccurrencePage() {
           )}
         </aside>
       </div>
-      <Modal
-        open={open}
-        onOpenChange={(v) => {
-          if (
-            !v &&
-            !confirm("영상 추가를 닫을까요? 입력한 내용은 저장되지 않습니다.")
-          )
-            return;
-          setOpen(v);
-        }}
-        title="연습 영상 추가"
-        description="이 회차에 연결할 영상을 등록하세요."
-      >
-        <VideoForm
-          onCancel={() => setOpen(false)}
+      {open && (
+        <VideoFormModal
+          onClose={() => setOpen(false)}
           onSave={async (title, url) => {
             await service.addVideo(occurrence.id, title, url);
-            setOpen(false);
           }}
         />
-      </Modal>
+      )}
     </>
   );
 }
@@ -627,17 +639,16 @@ export function VideoPage() {
           </form>
         </section>
       </div>
-      <Modal open={editVideo} onOpenChange={setEditVideo} title="영상 수정">
-        <VideoForm
+      {editVideo && (
+        <VideoFormModal
           initial={video}
-          onCancel={() => setEditVideo(false)}
+          onClose={() => setEditVideo(false)}
           onSave={async (title, url) => {
             await service.updateVideo(video.id, title, url);
-            setEditVideo(false);
             setFailed(false);
           }}
         />
-      </Modal>
+      )}
     </>
   );
 }
