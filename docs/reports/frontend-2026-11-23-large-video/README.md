@@ -52,4 +52,13 @@ UI 차단과 BE의 raw authenticated multipart 413은 별도 검증이다. BE �
 
 ## 정리
 
-BE metadata/초과 요청/정리 완료 후 최종 기록을 추가한다. 성공 영상은 앱에서 삭제하지 않고 BE가 승인된 합성 범위 전체를 정리한다.
+BE 최종 정리 확인:
+
+- DB 사용자·팀·멤버십·회차·영상·피드백·세션·비밀번호·객체 정리 큐의 9개 집계 모두 0.
+- 정확한 테스트 S3 key의 객체 버전 1개와 delete marker 1개 삭제, 잔여 0.
+- 임시 ECS task definition `teamground-onetime-large-video-qa-20261123:1` INACTIVE, 이번 일회성 작업 5개 모두 exit0.
+- BE credential fixture 삭제 및 seed password hash 가림 완료.
+- 운영 서비스 revision16 desired/running1, pending0, COMPLETED, readiness UP 유지.
+- FE 생성 MP4 2개와 임시 dependency symlink 삭제, 브라우저 종료. 비밀정보 없는 JSON 및 스크린샷은 보존.
+
+최종적으로 실제 업로드·재생, 초과 UI/서버 차단, 테스트 자료 정리를 완료했다. 추가 운영 배포는 수행하지 않았다.
