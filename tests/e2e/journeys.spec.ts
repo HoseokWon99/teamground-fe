@@ -92,3 +92,20 @@ test("390px 메뉴는 키보드 초점을 유지하고 닫힌 뒤 복원하며 �
   await expect(page.getByRole("heading", { name: "2026년 10월" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test("초대 모달은 이메일에서 시작해 양방향 Tab을 가두고 Escape 후 초점을 복원한다", async ({ page }) => {
+  await login(page, "/teams/padong/members");
+  const opener = page.getByRole("button", { name: "멤버 초대", exact: true, includeHidden: true });
+  await opener.click();
+  const invite = page.getByRole("dialog", { name: "함께할 멤버 초대" });
+  await expect(invite.getByRole("textbox")).toBeFocused();
+  for (const key of ["Tab", "Shift+Tab"]) {
+    for (let index = 0; index < 12; index++) {
+      await page.keyboard.press(key);
+      await expect.poll(() => invite.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+    }
+  }
+  await page.keyboard.press("Escape");
+  await expect(invite).toBeHidden();
+  await expect(opener).toBeFocused();
+});
