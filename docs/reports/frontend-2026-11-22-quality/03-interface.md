@@ -26,3 +26,11 @@
 ## 미검증·범위
 
 현재 이 보고서 작성 시 독립 최종 브라우저 검증은 진행 중이다. 자동 axe 통과를 전체 WCAG 준수 또는 실제 Safari/보조기기 검증으로 표현하지 않는다. 320px reflow·확대·모달 검증의 방법과 한계는 QA 보고서에서 별도 기록한다.
+
+## 추가 WebKit 초대 모달 수정
+
+최초 13개 E2E 통과 이후 QA가 WebKit의 초대 모달 Tab 탈출을 별도로 발견했다. 단일 fresh browser, headed/headless, viewport 변경·axe 실행 없이도 이메일 → focus guard → 배경 팀 전환으로 이동했다. React fiber 진단에서 Radix scope는 `trapped: true`, `paused: false`였지만 마지막 내부 초점 ref가 비어 있었고, 진단용 재초점 후에는 탈출하지 않았다. 초대 이메일의 React `autoFocus`가 Radix focus listener보다 먼저 실행된 경우였다.
+
+초대 입력의 `autoFocus`를 제거하고 공통 Modal의 선택적 `onOpenAutoFocus`에서 RHF `setFocus("email")`을 호출한다. 초기 이메일 초점은 유지하면서 Radix가 내부 초점 이동을 기록하게 한다. 새 Tab trap이나 브라우저별 분기는 추가하지 않았다. 페이지의 팀 생성 autofocus는 유지한다. 변경 후 `pnpm typecheck`, `git diff --check`는 통과했다. CI·QA의 새 production 빌드에서 양방향 Tab/Shift+Tab 루프와 Escape 복원을 재검증한다. 초기 13개 통과만으로 이 추가 결함의 해결을 주장하지 않는다.
+
+추가 수정의 최종 결과: CI가 수정 전 WebKit 초대 테스트 실패를 확보하고 새 빌드에서 **16/16 E2E 통과**(21.8초), 타입 검사·74개 단위검사·production build 성공을 확인했다. QA는 강제 초점 호출 없이 WebKit 5개 모달 각각 Tab 8회·Shift+Tab 8회·Escape·opener 복원 통과, Chromium 5개 모달/11화면 axe 위반 0, Firefox/WebKit 핵심 흐름 통과를 독립 확인했다. 루트가 추가 2파일 diff를 검토 승인했다.
