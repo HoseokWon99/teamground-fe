@@ -23,6 +23,13 @@ export class ApiError extends Error {
   }
 }
 const messages: Record<string, string> = {
+  INVITATION_EMAIL_MISMATCH:
+    "초대받은 이메일과 현재 계정이 다릅니다. 초대받은 계정으로 다시 로그인해 주세요.",
+  INVITATION_NOT_FOUND:
+    "초대를 찾을 수 없습니다. 메일의 초대 링크를 다시 확인해 주세요.",
+  INVITATION_NOT_PENDING:
+    "만료·취소되었거나 새 초대로 대체된 링크입니다. 팀 소유자에게 새 초대를 요청해 주세요.",
+  TEAMSPACE_FULL: "팀 정원이 가득 찼습니다. 팀 소유자에게 문의해 주세요.",
   REQUIRED_MEMBER_LEFT:
     "필수 멤버가 팀을 떠났습니다. 이탈한 필수 멤버 대체를 선택한 뒤 현재 멤버를 지정해 주세요.",
   VALIDATION_FAILED: "입력한 기간·시간·조건을 확인해 주세요.",
@@ -52,7 +59,7 @@ export function explainError(error: unknown): string {
       messages[error.code] ??
       "이 작업을 수행할 권한이 없습니다. 현재 역할을 다시 확인해 주세요."
     );
-  if (error.status === 404)
+  if (error.status === 404 && !messages[error.code])
     return "찾을 수 없거나 접근할 수 없는 항목입니다. 목록으로 돌아가 주세요.";
   if (messages[error.code])
     return (
@@ -114,7 +121,7 @@ export function safeReturnTo(value: string | null): string {
   if (
     !value ||
     /[\\?#%\s\u0000-\u001f]/.test(value) ||
-    !/^\/(teams(?:\/[^/]+)*|calendar|account)$/.test(value)
+    !/^\/(teams(?:\/[^/]+)*|calendar|account|invite)$/.test(value)
   )
     return "/teams";
   return value;

@@ -23,6 +23,9 @@ describe("server authentication", () => {
       expect(safeReturnTo(path)).toBe("/teams");
     expect(safeReturnTo("/teams/abc")).toBe("/teams/abc");
     expect(safeReturnTo("/account")).toBe("/account");
+    expect(safeReturnTo("/invite")).toBe("/invite");
+    expect(safeReturnTo("/invite#token=secret")).toBe("/teams");
+    expect(safeReturnTo("/invite?token=secret")).toBe("/teams");
     expect(safeReturnTo("/account?token=secret")).toBe("/teams");
     expect(safeReturnTo("/invite/abc_123")).toBe("/teams");
   });
@@ -191,4 +194,13 @@ describe("API deployment configuration", () => {
   ])("rejects invalid base without silent fallback: %s", (base) => {
     expect(() => resolveApiBase(base)).toThrow();
   });
+});
+
+it.each([
+  [404, "INVITATION_NOT_FOUND", "메일의 초대 링크"],
+  [403, "INVITATION_EMAIL_MISMATCH", "초대받은 계정"],
+  [409, "INVITATION_NOT_PENDING", "새 초대를 요청"],
+  [409, "TEAMSPACE_FULL", "정원이 가득"],
+] as const)("explains invitation error %s %s", (status, code, message) => {
+  expect(explainError(new ApiError(status, code))).toContain(message);
 });

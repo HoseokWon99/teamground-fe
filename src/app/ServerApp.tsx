@@ -52,7 +52,7 @@ const TeamPage = lazy(() =>
   })),
 );
 const InvitationPage = lazy(() =>
-  import("@/features/server-workspace/Teams").then((m) => ({
+  import("@/features/server-workspace/Invitation").then((m) => ({
     default: m.InvitationPage,
   })),
 );
