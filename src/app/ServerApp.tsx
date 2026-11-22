@@ -1,8 +1,10 @@
+import { ConfirmActionProvider } from "@/features/server-workspace/ConfirmAction";
 import { lazy, Suspense } from "react";
 import {
   createBrowserRouter,
   RouterProvider,
   Navigate,
+  Link,
   useSearchParams,
 } from "react-router-dom";
 import { UnsavedChangesProvider } from "@/app/unsaved-changes";
@@ -89,59 +91,100 @@ function RootRedirect() {
     />
   );
 }
-const router = createBrowserRouter([
-  { path: "/invite", element: <InvitationPage token={token} /> },
-  { path: "/login", element: <LoginPage /> },
-  { path: "/signup", element: <RequestPage key="signup" signup /> },
-  {
-    path: "/forgot-password",
-    element: <RequestPage key="reset" signup={false} />,
-  },
-  {
-    path: "/verify-email",
-    element: <TokenPage key="verify" signup token={token} />,
-  },
-  {
-    path: "/reset-password",
-    element: <TokenPage key="reset" signup={false} token={token} />,
-  },
-  {
-    element: <UnsavedChangesProvider />,
-    children: [
-      {
-        element: <ServerGuard />,
-        children: [
-          {
-            element: <ServerLayout />,
-            children: [
-              { path: "/teams", element: <ServerTeams /> },
-              { path: "/calendar", element: <CalendarPage /> },
-              { path: "/teams/:teamId", element: <TeamPage /> },
-              {
-                path: "/teams/:teamId/scheduling",
-                element: <SchedulingPage />,
-              },
-              {
-                path: "/teams/:teamId/scheduling/:requestId",
-                element: <SchedulingPage />,
-              },
-              {
-                path: "/teams/:teamId/occurrences/:occurrenceId",
-                element: <OccurrencePage />,
-              },
-              {
-                path: "/teams/:teamId/videos/:videoId",
-                element: <VideoPage />,
-              },
-              { path: "*", element: <UnavailablePage /> },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  { path: "/", element: <RootRedirect /> },
-]);
+const NewTeamPage = lazy(() =>
+  import("@/features/server-auth/Workspace").then((m) => ({
+    default: m.NewTeamPage,
+  })),
+);
+const AccountPage = lazy(() =>
+  import("@/features/server-workspace/Account").then((m) => ({
+    default: m.AccountPage,
+  })),
+);
+const LegalPage = lazy(() => import("@/features/legal/pages"));
+const router = createBrowserRouter(
+  [
+    { path: "/privacy", element: <LegalPage kind="privacy" /> },
+    { path: "/terms", element: <LegalPage kind="terms" /> },
+    { path: "/invite", element: <InvitationPage token={token} /> },
+    { path: "/login", element: <LoginPage /> },
+    { path: "/signup", element: <RequestPage key="signup" signup /> },
+    {
+      path: "/forgot-password",
+      element: <RequestPage key="reset" signup={false} />,
+    },
+    {
+      path: "/verify-email",
+      element: <TokenPage key="verify" signup token={token} />,
+    },
+    {
+      path: "/reset-password",
+      element: <TokenPage key="reset" signup={false} token={token} />,
+    },
+    {
+      element: <UnsavedChangesProvider />,
+      children: [
+        {
+          element: <ServerGuard />,
+          children: [
+            {
+              element: <ServerLayout />,
+              children: [
+                { path: "/teams", element: <ServerTeams /> },
+                { path: "/teams/new", element: <NewTeamPage /> },
+                { path: "/account", element: <AccountPage /> },
+                {
+                  path: "/teams/:teamId/members",
+                  element: <TeamPage membersView />,
+                },
+                { path: "/calendar", element: <CalendarPage /> },
+                { path: "/teams/:teamId", element: <TeamPage /> },
+                {
+                  path: "/teams/:teamId/scheduling",
+                  element: <SchedulingPage />,
+                },
+                {
+                  path: "/teams/:teamId/scheduling/:requestId",
+                  element: <SchedulingPage />,
+                },
+                {
+                  path: "/teams/:teamId/occurrences/:occurrenceId",
+                  element: <OccurrencePage />,
+                },
+                {
+                  path: "/teams/:teamId/videos/:videoId",
+                  element: <VideoPage />,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    { path: "/", element: <RootRedirect /> },
+    {
+      path: "*",
+      element: (
+        <main className="auth-container">
+          <UnavailablePage />
+        </main>
+      ),
+    },
+  ].map((route) => ({
+    ...route,
+    errorElement: (
+      <main className="auth-container stack">
+        <h1>화면을 불러오지 못했습니다</h1>
+        <p>
+          연결을 확인하고 다시 시도해 주세요. 작성 중인 내용은 새로고침하면
+          사라질 수 있습니다.
+        </p>
+        <button onClick={() => window.location.reload()}>다시 불러오기</button>
+        <Link to="/teams">내 팀 목록으로</Link>
+      </main>
+    ),
+  })),
+);
 export default function ServerApp() {
   return (
     <SessionProvider>
@@ -152,7 +195,9 @@ export default function ServerApp() {
           </p>
         }
       >
-        <RouterProvider router={router} />
+        <ConfirmActionProvider>
+          <RouterProvider router={router} />
+        </ConfirmActionProvider>
       </Suspense>
     </SessionProvider>
   );

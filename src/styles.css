@@ -827,3 +827,113 @@ details > summary {
   display: inline-block;
   padding: 8px 0;
 }
+
+/* Actual-service workspace shares the visual language without demo data. */
+.server-workspace .main-content {
+  max-width: 1280px;
+  width: 100%;
+  margin-inline: auto;
+}
+.server-workspace .topbar select {
+  max-width: 260px;
+}
+.server-workspace .row {
+  flex-wrap: wrap;
+}
+.server-workspace input,
+.server-workspace textarea,
+.server-workspace select {
+  min-width: 0;
+  max-width: 100%;
+}
+.server-workspace .card {
+  overflow-wrap: anywhere;
+}
+.server-workspace .card > a:not(.button) {
+  color: #205d47;
+  font-weight: 600;
+}
+.server-workspace details {
+  padding: 12px;
+  border: 1px solid #e3e8e1;
+  border-radius: 12px;
+}
+.server-workspace summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.calendar-switch {
+  justify-content: flex-end;
+}
+.calendar-list {
+  padding: 20px;
+}
+.calendar-list-toolbar {
+  justify-content: space-between;
+}
+.calendar-list-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #e3e8e1;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.calendar-list-entry:hover {
+  background: #eff5ed;
+}
+.member-status-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+.member-status-list li {
+  border: 1px solid #e3e8e1;
+  border-radius: 10px;
+  padding: 12px;
+}
+.video-card-grid,
+.candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+.video-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.video-card-mark {
+  display: grid;
+  place-items: center;
+  min-height: 100px;
+  border-radius: 12px;
+  background: #eff5ed;
+}
+@media (max-width: 760px) {
+  .server-workspace .main-content {
+    padding: 20px 14px;
+  }
+  .server-workspace .topbar {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .server-workspace .topbar select {
+    max-width: 150px;
+  }
+  .server-workspace .topbar-right {
+    gap: 6px;
+  }
+  .server-workspace h1 {
+    font-size: 26px;
+  }
+  .calendar-list-toolbar {
+    align-items: flex-start;
+  }
+}

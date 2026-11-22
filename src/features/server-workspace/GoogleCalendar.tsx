@@ -108,8 +108,16 @@ function ConnectionForm({
                   {source.name}
                 </span>
                 <span>
-                  동기화 {source.syncStatus} ·{" "}
-                  {source.current ? "현재 선택 기준" : "다시 동기화 필요"}
+                  동기화{" "}
+                  {(
+                    {
+                      NEVER_SYNCED: "아직 동기화하지 않음",
+                      SYNCING: "진행 중",
+                      SUCCEEDED: "완료",
+                      FAILED: "실패",
+                    } as Record<string, string>
+                  )[source.syncStatus] ?? "상태 확인 필요"}{" "}
+                  · {source.current ? "현재 선택 기준" : "다시 동기화 필요"}
                   {source.lastSuccessAt
                     ? ` · 마지막 성공 ${displayTime(source.lastSuccessAt)}`
                     : " · 성공 기록 없음"}
@@ -146,14 +154,14 @@ function ConnectionForm({
               })
             }
           >
-            조회 기간 동기화
+            확인 기간 동기화
           </Button>
           <Button
             variant="outline"
             disabled={action.busy}
-            onClick={() => {
+            onClick={async () => {
               if (
-                window.confirm(
+                await action.confirm(
                   "연결을 해제하면 가져온 일정과 입력 완료 확인이 제거됩니다. 계속할까요?",
                 )
               )

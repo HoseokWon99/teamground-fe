@@ -39,6 +39,12 @@ export function Modal({
           className="modal-content"
           aria-describedby={description ? descriptionId : undefined}
           onOpenAutoFocus={onOpenAutoFocus}
+          onEscapeKeyDown={(event) => {
+            if (closeDisabled) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (closeDisabled) event.preventDefault();
+          }}
           onCloseAutoFocus={(event) => {
             if (previousFocus.current?.isConnected) {
               event.preventDefault();

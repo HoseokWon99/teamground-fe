@@ -64,6 +64,7 @@ export interface Candidate {
   score: { minimumAvailableMembers: number; totalAvailableMembers: number };
 }
 export interface Occurrence extends Slot {
+  scheduleId: string;
   id: string;
   title: string;
   sequence: number;

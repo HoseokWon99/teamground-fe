@@ -114,7 +114,7 @@ export function safeReturnTo(value: string | null): string {
   if (
     !value ||
     /[\\?#%\s\u0000-\u001f]/.test(value) ||
-    !/^\/(teams(?:\/[^/]+)*|calendar)$/.test(value)
+    !/^\/(teams(?:\/[^/]+)*|calendar|account)$/.test(value)
   )
     return "/teams";
   return value;
