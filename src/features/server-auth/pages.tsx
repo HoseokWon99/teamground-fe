@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { ErrorNotice, PageHeader } from "@/components/common";
-import { api, enterDemo, explainError, readReturnTo, type Profile } from "./api";
+import { api, apiUrl, enterDemo, explainError, readReturnTo, type Profile } from "./api";
 import { useSession } from "./session";
 const email = z.string().trim().toLowerCase().email("올바른 이메일을 입력해 주세요.");
 const password = z.string().refine((v) => Array.from(v).length >= 12 && Array.from(v).length <= 128, "비밀번호는 12~128자로 입력해 주세요.");
@@ -39,7 +39,7 @@ export function LoginPage() {
       <FieldError id="password-error" message={errors.password?.message} /><ErrorNotice message={error} />
       <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "로그인 중…" : "이메일로 로그인"}</Button>
     </form>
-    <Button asChild variant="outline"><a href={`/api/v1/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`}>Google로 로그인</a></Button>
+    <Button asChild variant="outline"><a href={apiUrl(`/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`)}>Google로 로그인</a></Button>
     <div className="row" style={{ flexWrap: "wrap" }}><Link to="/signup">회원가입</Link><Link to="/forgot-password">비밀번호 찾기</Link></div>
     <Button variant="ghost" onClick={enterDemo}>데모 체험하기</Button><p className="muted">데모는 실제 계정과 분리된 브라우저 내 체험입니다.</p>
   </AuthFrame>;

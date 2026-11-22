@@ -89,3 +89,11 @@ SMTP `localhost:11025`), 프론트엔드 개발 서버를 실행한 뒤
 팀 생성→로그아웃→재설정→별도 브라우저 기존 세션 거절→기존 비밀번호 거절→새 비밀번호 로그인→
 토큰 재사용 거절을 검사한다. 비밀이 담긴 브라우저 trace는 이 테스트에서 생성하지 않는다.
 외부 Google 제공자와 실제 메일 수신함, 운영 쿠키·프록시는 별도 검증 대상이다.
+
+## 서버 도메인 화면
+
+인증·팀 목록에서 팀 상세, 개인 일정/확인 범위, 조율 추천·확정, 회차 영상·피드백으로 이어지는 실제 API 화면을 제공합니다. 데모는 명시적으로 선택하며 실제 API 오류를 데모 데이터로 대체하지 않습니다.
+
+API 기본값은 `/api/v1`입니다. FE와 BE를 같은 사이트의 서로 다른 origin으로 배포하는 경우 `.env.example`처럼 `VITE_API_BASE_URL=https://jointeamground.com/api/v1`를 빌드 시 설정합니다. 서버 CORS는 FE origin과 credential 요청을 허용해야 합니다. 잘못된 base URL은 오류로 처리합니다. `vercel.json`은 Git 자동 배포를 비활성화합니다.
+
+범위와 미검증 항목은 [API 연동 보고서](docs/reports/frontend-2026-11-22-api-integration/README.md)를 참고하세요. 로컬 BE/Mailpit 통합 테스트는 실행 중인 localhost:8080 BE, SMTP :11025, Mailpit :18025, FE 127.0.0.1:5173 환경에서 `pnpm exec playwright test --config playwright.integration.config.ts`로 실행합니다. 운영 환경에는 실행하지 마세요.
