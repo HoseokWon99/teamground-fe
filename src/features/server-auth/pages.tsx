@@ -92,6 +92,13 @@ export function LoginPage() {
   });
   return (
     <AuthFrame title="로그인">
+      {returnTo === "/invite" && (
+        <p role="note">
+          초대받은 이메일로 로그인해 주세요. 이메일 로그인 후 초대 화면으로
+          돌아갑니다. 회원가입·비밀번호 재설정·Google 로그인 후에는 원래 초대
+          메일의 링크를 다시 열어 주세요.
+        </p>
+      )}
       {params.get("completed") && (
         <p role="status">
           {params.get("completed") === "signup"
