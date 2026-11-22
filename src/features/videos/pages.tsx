@@ -1,3 +1,5 @@
+import { validateVideoFile } from "@/lib/video-file";
+import { isLocalVideo, storeLocalVideo, readLocalVideo, deleteLocalVideo } from "@/lib/local-video";
 import { useUnsavedActions, useUnsavedChanges } from "@/app/unsaved-changes";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -35,33 +37,32 @@ const videoSchema = z.object({
     .trim()
     .min(1, "영상 제목을 입력해 주세요.")
     .max(100, "100자 이내로 입력해 주세요."),
-  url: z
-    .string()
-    .refine(
-      (v) => v === "/demo/rehearsal.webm" || /^https?:\/\//i.test(v),
-      "http 또는 https 영상 주소를 입력해 주세요.",
-    ),
+
 });
 function VideoFormModal({
   initial,
   onSave,
   onClose,
+  lockSource = false,
 }: {
   initial?: Video;
+  lockSource?: boolean;
   onSave: (title: string, url: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [error, setError] = useState("");
+  const [file, setFile] = useState<File>();
+  const fileError = file ? validateVideoFile(file) : "";
   const submitting = useRef(false);
   const form = useForm<z.infer<typeof videoSchema>>({
     resolver: zodResolver(videoSchema),
-    defaultValues: { title: initial?.title || "", url: initial?.url || "" },
+    defaultValues: { title: initial?.title || "" },
   });
   const { isDirty, isSubmitting } = form.formState;
-  useUnsavedChanges(isDirty, isSubmitting);
+  useUnsavedChanges(isDirty || Boolean(file), isSubmitting);
   function requestClose() {
     if (submitting.current) return;
-    if (!isDirty || confirm("작성 중인 내용을 버릴까요?")) onClose();
+    if ((!isDirty && !file) || confirm("작성 중인 내용을 버릴까요?")) onClose();
   }
   return (
     <Modal
@@ -84,7 +85,12 @@ function VideoFormModal({
             await form.handleSubmit(async (v) => {
               setError("");
               try {
-                await onSave(v.title, v.url);
+                if (fileError) throw new Error(fileError);
+                if (!initial && !file) throw new Error("영상 파일을 선택해 주세요.");
+                const url = file ? await storeLocalVideo(file) : initial!.url;
+                try { await onSave(v.title, url); }
+                catch (e) { if (file) await deleteLocalVideo(url).catch(() => undefined); throw e; }
+                if (file && initial) await deleteLocalVideo(initial.url).catch(() => undefined);
                 onClose();
               } catch (e) {
                 setError(
@@ -111,40 +117,15 @@ function VideoFormModal({
           </span>
         </div>
         <div className="field">
-          <label htmlFor="video-url">영상 주소</label>
-          <input
-            disabled={isSubmitting}
-            id="video-url"
-            className="input"
-            placeholder="https://…"
-            {...form.register("url")}
-          />
-          <span className="field-error">
-            {form.formState.errors.url?.message}
-          </span>
+          <label htmlFor="video-file">{initial ? "교체할 영상 파일 (선택)" : "영상 파일"}</label>
+          <input id="video-file" className="input" type="file" accept=".mp4,.webm,video/mp4,video/webm"
+            required={!initial} disabled={isSubmitting || lockSource}
+            aria-describedby="demo-file-help" aria-invalid={Boolean(fileError)}
+            onChange={(e) => setFile(e.target.files?.[0])} />
+          {fileError && <span role="alert" className="field-error">{fileError}</span>}
         </div>
-        <Button
-          disabled={isSubmitting}
-          variant="outline"
-          onClick={() => {
-            form.setValue("url", "/demo/rehearsal.webm", {
-              shouldValidate: true,
-              shouldDirty: true,
-            });
-            if (!form.getValues("title"))
-              form.setValue("title", "움직임 스터디 · 데모 영상", {
-                shouldDirty: true,
-              });
-          }}
-        >
-          <VideoIcon size={16} />
-          로컬 데모 영상 선택
-        </Button>
-        <p className="muted" style={{ fontSize: 12 }}>
-          외부 영상은 원본 서비스의 접근 설정이 적용됩니다. 데모 영상은 추상적인
-          움직임 연습용 샘플입니다. 피드백이 있는 영상은 주소를 변경할 수
-          없습니다.
-        </p>
+        <p id="demo-file-help" className="muted">MP4 또는 WebM · 최대 100 MiB. 데모 파일은 이 브라우저에만 저장되며 서버로 업로드되지 않습니다.</p>
+        {lockSource && <p>피드백이 있는 영상의 원본은 교체할 수 없습니다.</p>}
         <ErrorNotice message={error} />
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Button
@@ -154,7 +135,7 @@ function VideoFormModal({
           >
             취소
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || Boolean(fileError)}>
             {isSubmitting ? "저장 중…" : initial ? "변경 저장" : "영상 추가"}
           </Button>
         </div>
@@ -380,6 +361,21 @@ export function VideoPage() {
   const [editBaseline, setEditBaseline] = useState("");
   const { confirmDiscard, runAfterDiscard } = useUnsavedActions();
   const [failed, setFailed] = useState(false);
+  const storedUrl = state.videos.find((v) => v.id === videoId)?.url;
+  const [localUrl, setLocalUrl] = useState<{ key: string; url: string }>();
+  useEffect(() => {
+    if (!storedUrl || !isLocalVideo(storedUrl)) return;
+    let disposed = false;
+    let objectUrl: string | undefined;
+    void readLocalVideo(storedUrl).then((blob) => {
+      if (disposed) return;
+      if (!blob) { setFailed(true); return; }
+      objectUrl = URL.createObjectURL(blob);
+      setLocalUrl({ key: storedUrl, url: objectUrl });
+      setFailed(false);
+    }).catch(() => { if (!disposed) setFailed(true); });
+    return () => { disposed = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [storedUrl]);
   const form = useForm<z.infer<typeof commentSchema>>({
     resolver: zodResolver(commentSchema),
     defaultValues: { body: "" },
@@ -434,7 +430,9 @@ export function VideoPage() {
       />
     );
   const back = `/teams/${teamId}/occurrences/${occurrenceId}`;
+  const playbackUrl = isLocalVideo(video.url) ? (localUrl?.key === video.url ? localUrl.url : undefined) : video.url;
   const playable =
+    isLocalVideo(video.url) ||
     video.url === "/demo/rehearsal.webm" ||
     /\.(mp4|webm)(\?.*)?$/i.test(video.url);
   return (
@@ -487,7 +485,7 @@ export function VideoPage() {
               src={
                 video.url === "/demo/rehearsal.webm"
                   ? "/demo/rehearsal.mp4"
-                  : video.url
+                  : playbackUrl
               }
               poster={
                 video.url.startsWith("/demo/") ? "/demo/poster.jpg" : undefined
@@ -506,7 +504,7 @@ export function VideoPage() {
                   : "원본 서비스에서 영상을 확인해 주세요"
               }
               description="기존 피드백은 아래에서 계속 확인할 수 있습니다."
-              action={
+              action={!isLocalVideo(video.url) &&
                 <Button asChild variant="outline">
                   <a href={video.url} target="_blank" rel="noreferrer">
                     원본 열기
@@ -520,7 +518,7 @@ export function VideoPage() {
             <VideoIcon size={14} />
             {video.url === "/demo/rehearsal.webm"
               ? "로컬 데모 · 녹색 격자 위 세 막대가 나타나는 8초 무음 재생 테스트 영상"
-              : "외부 영상 · 원본 서비스의 접근 권한이 적용됩니다"}
+              : isLocalVideo(video.url) ? "브라우저에 저장한 데모 영상" : "외부 영상 · 원본 서비스의 접근 권한이 적용됩니다"}
           </div>
         </section>
         <section className="card">
@@ -670,6 +668,7 @@ export function VideoPage() {
       {editVideo && (
         <VideoFormModal
           initial={video}
+          lockSource={comments.length > 0}
           onClose={() => setEditVideo(false)}
           onSave={async (title, url) => {
             await service.updateVideo(video.id, title, url);

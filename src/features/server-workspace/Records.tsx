@@ -1,9 +1,10 @@
+import { validateVideoFile } from "@/lib/video-file";
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ErrorNotice, PageHeader } from "@/components/common";
-import { api, type Teamspace } from "@/features/server-auth/api";
+import { api, ApiError, uploadVideo, type Teamspace } from "@/features/server-auth/api";
 import { useSession } from "@/features/server-auth/session";
 import {
   Field,
@@ -68,8 +69,10 @@ export function OccurrencePage() {
           {occurrence.data.status !== "CANCELLED" && (
             <VideoForm
               key={`${teamId}/${occurrenceId}`}
-              save={async (value) => {
-                await api(`${base}/occurrences/${occurrenceId}/videos`, value);
+              reconcile={videos.reload}
+              save={async (value, onProgress, signal) => {
+                if (!value.file) return;
+                await uploadVideo(`${base}/occurrences/${occurrenceId}/videos`, { title: value.title, file: value.file }, onProgress, undefined, signal);
                 await videos.reload();
               }}
             />
@@ -363,7 +366,9 @@ function VideoContent({
   const feedback = useResource<Feedback[]>(`${path}/feedback`);
   const [body, setBody] = useState("");
   const [editing, setEditing] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
   const [playError, setPlayError] = useState(false);
+  const [playAttempt, setPlayAttempt] = useState(0);
   const clearFeedbackDirty = useUnsaved(Boolean(body), action.busy);
   const owner = team.data?.role === "OWNER";
   const author = video.authorId === profile?.id;
@@ -392,14 +397,15 @@ function VideoContent({
           style={{ width: "100%", maxHeight: 500 }}
           controls
           preload="metadata"
+          key={`${video.sourceUrl}:${playAttempt}`}
           src={video.sourceUrl}
           onError={() => setPlayError(true)}
         />
       )}
       {playError && (
         <p role="status">
-          영상 재생이 어렵습니다. 원본 링크를 열어 주세요. 피드백은 계속 확인할
-          수 있습니다.
+          영상 재생이 어렵습니다. 다시 시도해 주세요. 피드백은 계속 확인할 수 있습니다.
+          <Button variant="outline" onClick={async () => { await reload(); setPlayError(false); setPlayAttempt((value) => value + 1); }}>재생 다시 시도</Button>
         </p>
       )}
       <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer">
@@ -408,6 +414,7 @@ function VideoContent({
       {author && (
         <Button
           variant="outline"
+          disabled={uploadBusy}
           onClick={async () => {
             if (
               !editing ||
@@ -427,8 +434,11 @@ function VideoContent({
           initial={video}
           targets={targets.data}
           lockSource={video.everReceivedFeedback || !active}
-          save={async (value) => {
-            await api(path, value, { method: "PATCH", version: video.version });
+          reconcile={reload}
+          onBusyChange={setUploadBusy}
+          save={async (value, onProgress, signal) => {
+            if (value.file) await uploadVideo(path, { title: value.title, file: value.file }, onProgress, video.version, signal);
+            else await api(path, { title: value.title, ...(value.occurrenceId ? { occurrenceId: value.occurrenceId } : {}) }, { method: "PATCH", version: video.version });
             setEditing(false);
             await reload();
           }}
@@ -512,24 +522,33 @@ function VideoForm({
   lockSource = false,
   save,
   targets,
+  reconcile,
+  onBusyChange,
 }: {
   initial?: Video;
+  reconcile: () => Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
   targets?: Occurrence[];
   lockSource?: boolean;
   save: (value: {
     title: string;
-    sourceUrl?: string;
+    file?: File;
     occurrenceId?: string;
-  }) => Promise<void>;
+  }, onProgress: (percent: number) => void, signal: AbortSignal) => Promise<void>;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [sourceUrl, setSourceUrl] = useState(initial?.sourceUrl ?? "");
+  const [file, setFile] = useState<File>();
+  const [fileError, setFileError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const controller = useRef<AbortController | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const action = useAction();
   const [occurrenceId, setOccurrenceId] = useState(initial?.occurrenceId ?? "");
   const clearDirty = useUnsaved(
     occurrenceId !== (initial?.occurrenceId ?? "") ||
       title !== (initial?.title ?? "") ||
-      sourceUrl !== (initial?.sourceUrl ?? ""),
+      Boolean(file),
     action.busy,
   );
   return (
@@ -538,20 +557,27 @@ function VideoForm({
       style={{ padding: 20 }}
       onSubmit={(e) => {
         e.preventDefault();
+        if (uncertain || fileError || !title.trim() || (!initial && !file)) return;
         void action.run(async () => {
-          await save({
+          setProgress(0);
+          controller.current = new AbortController();
+          onBusyChange?.(true);
+          try { await save({
             title: title.trim(),
-            ...(!lockSource
-              ? {
-                  sourceUrl: sourceUrl.trim(),
-                  ...(initial ? { occurrenceId } : {}),
-                }
-              : {}),
-          });
+            ...(!lockSource ? { file, ...(initial && !file ? { occurrenceId } : {}) } : {}),
+          }, setProgress, controller.current.signal);
+          } catch (error) {
+            if (error instanceof ApiError && error.code === "UPLOAD_INTERRUPTED") {
+              setUncertain(true);
+              await reconcile();
+            }
+            throw error;
+          } finally { controller.current = null; onBusyChange?.(false); }
           clearDirty();
           if (!initial) {
             setTitle("");
-            setSourceUrl("");
+            setFile(undefined);
+            if (fileInput.current) fileInput.current.value = "";
           }
         });
       }}
@@ -563,26 +589,40 @@ function VideoForm({
           className="input"
           required
           maxLength={100}
+          disabled={action.busy}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
       </Field>
-      <Field label="영상 HTTPS 주소">
+      <Field label={initial ? "교체할 영상 파일 (선택)" : "영상 파일"}>
         <input
+          ref={fileInput}
           className="input"
-          required
-          type="url"
-          pattern="https://.*"
-          disabled={lockSource}
-          value={sourceUrl}
-          onChange={(e) => setSourceUrl(e.target.value)}
+          type="file"
+          accept=".mp4,.webm,video/mp4,video/webm"
+          required={!initial}
+          disabled={lockSource || action.busy}
+          aria-invalid={Boolean(fileError)}
+          aria-describedby="video-file-help"
+          onChange={(e) => {
+            const selected = e.target.files?.[0];
+            setFile(selected);
+            setFileError(selected ? validateVideoFile(selected) : "");
+          }}
         />
       </Field>
+      <p id="video-file-help">MP4 또는 WebM · 최대 100 MiB. 파일을 선택해 업로드하세요.</p>
+      {fileError && <p role="alert" className="field-error">{fileError}</p>}
+      {action.busy && !file && <p role="status">변경 사항 저장 중…</p>}
+      {action.busy && file && <div role="status"><progress aria-label="영상 업로드 진행률" max={100} value={progress} /> {progress < 100 ? `업로드 중 ${progress}%` : "업로드 완료 · 서버에 저장 중…"}</div>}
+      {action.busy && file && <Button variant="outline" onClick={() => controller.current?.abort()}>전송 취소</Button>}
+      {uncertain && <div role="status"><p>최신 기록 조회를 요청했습니다. 목록이나 상세의 조회 오류가 없는지, 이미 저장된 영상이 있는지 확인해 주세요. 확인 전에는 다시 전송하지 않습니다.</p><Button variant="outline" onClick={() => setUncertain(false)}>저장 결과 확인함 · 재시도 허용</Button></div>}
       {initial && !lockSource && (
         <Field label="영상이 속한 회차">
           <select
             className="input"
             value={occurrenceId}
+            disabled={action.busy || Boolean(file)}
             onChange={(e) => setOccurrenceId(e.target.value)}
           >
             <option value={initial.occurrenceId}>현재 회차</option>
@@ -599,14 +639,15 @@ function VideoForm({
           </select>
         </Field>
       )}
+      {file && initial && <p>파일 교체 후 회차 이동을 별도로 저장할 수 있습니다.</p>}
       {lockSource && (
         <p>
           피드백이 달린 적이 있거나 취소된 회차의 영상 원본은 변경할 수
           없습니다.
         </p>
       )}
-      <Button type="submit" disabled={action.busy || !title.trim()}>
-        영상 저장
+      <Button type="submit" disabled={action.busy || uncertain || !title.trim() || Boolean(fileError) || (!initial && !file)}>
+        {action.busy ? "저장 중…" : "영상 저장"}
       </Button>
     </form>
   );
