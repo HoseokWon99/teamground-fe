@@ -7,7 +7,7 @@
 - `.github/workflows/quality.yml`: main 대상 PR과 main push에서 Node 22, pnpm 10.29.1, frozen lockfile 설치 → 앱/E2E 타입 검사 → Vitest → production build. 같은 빌드 artifact를 Chromium/Firefox/WebKit matrix가 받아 preview로 검증한다.
 - workflow 권한은 `contents: read`, checkout credential 미보존, secret·백엔드·배포 의존 없음. fork PR에서도 동일한 로컬 mock 검증만 실행한다. 동일 ref의 이전 실행은 취소하고 브라우저 한 종류 실패가 다른 종류를 취소하지 않는다.
 - `playwright.config.ts`, `tests/e2e/`: 브라우저별 격리 context와 UI 로그인으로 시작한다. 개발 모듈 import, store 강제 주입, HMR, 임의 sleep 없이 사용자 동작 및 Playwright 대기 assertion을 사용한다.
-- 총 13개 실행: 사용자 흐름 4개 × 브라우저 3종 + Chromium axe 검사 1개(5개 화면 상태). 일반 멤버 권한은 시뮬레이션 검증이며 서버 보안 검증이 아니다.
+- 총 16개 실행: 사용자 흐름 5개 × 브라우저 3종 + Chromium axe 검사 1개(5개 화면 상태). 일반 멤버 권한은 시뮬레이션 검증이며 서버 보안 검증이 아니다.
 - `package.json`, `pnpm-lock.yaml`: 최소 dev 의존성 `@playwright/test`, `@axe-core/playwright`, `packageManager` 고정. axe 의존성의 최소 버전에 맞춰 Node 엔진을 22.12.0 이상으로 명시한다. Vitest 수집을 `src`로 한정해 E2E와 분리한다. 별도 `tests/e2e/tsconfig.json`으로 테스트와 Playwright 설정도 타입 검사한다. 기존 Vite 설정은 변경하지 않는다.
 
 ## 재현 명령
@@ -51,9 +51,13 @@ UI 담당자의 소스 동결 후 다음 명령을 순서대로 다시 실행했
 |---|---|
 | `pnpm typecheck` | 앱 및 E2E/설정 타입 검사 통과 |
 | `pnpm test` | 5개 파일, 74개 테스트 통과 (Avatar 대비 13개 포함) |
-| `pnpm test:e2e --workers=3` | production build 성공, 13/13 통과, 브라우저 실행 19.7초 |
+| `pnpm test:e2e --workers=3` | production build 성공, 16/16 통과, 브라우저 실행 21.8초 |
 
-WebKit의 모바일 메뉴, 영상 추가 저장 후, 영상 수정 Escape 후 opener 초점 복원을 모두 통과했다. Chromium axe 5개 상태의 위반은 0개였다. 자동 보고서는 `dist/qa-artifacts/report/`, 실행 로그는 `/tmp/teamground-quality-final-tests.log`이며 임시 산출물은 영구 보존하지 않는다. 원격 CI는 Draft PR 생성 이후 별도 확인한다.
+WebKit의 모바일 메뉴, 영상 추가 저장 후, 영상 수정 Escape 후 opener 초점 복원을 모두 통과했다. Chromium axe 5개 상태의 위반은 0개였다. 자동 보고서는 `dist/qa-artifacts/report/`, 실행 로그는 `/tmp/teamground-quality-final-tests-16.log`이며 임시 산출물은 영구 보존하지 않는다.
+
+추가 독립 QA의 WebKit 초대 모달 Tab 탈출은 영구 suite를 기존 production 빌드에 실행하여 실패를 재현했다(`pnpm exec playwright test tests/e2e/journeys.spec.ts --project=webkit --grep '초대 모달'`, `/tmp/teamground-invite-before.log`). 이메일 초기 초점은 통과했으나 Tab 이후 모달 내부 assertion이 false였다. UI 담당자가 React autoFocus를 Radix onOpenAutoFocus로 옮긴 뒤 16개 전체 실행을 통과했다. 초대 검사는 이메일 초기 초점, Tab/Shift+Tab 각각 12회 내부 유지, Escape 후 opener 복원을 3개 브라우저에서 확인한다.
+
+Draft [PR #4](https://github.com/HoseokWon99/teamground-fe/pull/4)의 최초 HEAD `d0bc641`은 [Actions run 44986713020](https://github.com/HoseokWon99/teamground-fe/actions/runs/44986713020)에서 타입·단위·빌드 및 3개 브라우저 job을 모두 통과했다. 이는 초대 회귀 추가 전 13개 suite 결과이며 최종 16개 suite의 원격 결과와 구분한다.
 
 ## 범위와 제한
 
