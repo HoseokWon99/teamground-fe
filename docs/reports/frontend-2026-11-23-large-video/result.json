@@ -1,0 +1,168 @@
+{
+  "bytes": 104857450,
+  "oversizedBytes": 106549492,
+  "checks": [],
+  "oversize": {
+    "message": "영상은 최대 100 MiB까지 업로드할 수 있습니다.",
+    "uploadPosts": 0,
+    "saveDisabled": true,
+    "titlePreserved": true,
+    "filePreserved": true,
+    "mobileNoOverflow": true
+  },
+  "validSelectionClearedError": true,
+  "upload": {
+    "status": 201,
+    "elapsedMs": 4570,
+    "posts": 1,
+    "progress": [
+      {
+        "value": 0,
+        "atMs": 1142
+      },
+      {
+        "value": 7,
+        "atMs": 1268
+      },
+      {
+        "value": 9,
+        "atMs": 1370
+      },
+      {
+        "value": 13,
+        "atMs": 1480
+      },
+      {
+        "value": 19,
+        "atMs": 1581
+      },
+      {
+        "value": 23,
+        "atMs": 1682
+      },
+      {
+        "value": 26,
+        "atMs": 1782
+      },
+      {
+        "value": 31,
+        "atMs": 1888
+      },
+      {
+        "value": 36,
+        "atMs": 1993
+      },
+      {
+        "value": 38,
+        "atMs": 2093
+      },
+      {
+        "value": 40,
+        "atMs": 2201
+      },
+      {
+        "value": 45,
+        "atMs": 2304
+      },
+      {
+        "value": 49,
+        "atMs": 2404
+      },
+      {
+        "value": 53,
+        "atMs": 2512
+      },
+      {
+        "value": 54,
+        "atMs": 2621
+      },
+      {
+        "value": 59,
+        "atMs": 2729
+      },
+      {
+        "value": 63,
+        "atMs": 2837
+      },
+      {
+        "value": 69,
+        "atMs": 3046
+      },
+      {
+        "value": 73,
+        "atMs": 3148
+      },
+      {
+        "value": 76,
+        "atMs": 3246
+      },
+      {
+        "value": 80,
+        "atMs": 3355
+      },
+      {
+        "value": 87,
+        "atMs": 3563
+      },
+      {
+        "value": 92,
+        "atMs": 3667
+      },
+      {
+        "value": 93,
+        "atMs": 3776
+      },
+      {
+        "value": 97,
+        "atMs": 3880
+      },
+      {
+        "value": 100,
+        "atMs": 3989
+      }
+    ]
+  },
+  "videoId": "bb958ccf-aa73-473e-b416-913e930f59b4",
+  "duration": 60,
+  "initialPlayback": {
+    "currentTime": 0.8699,
+    "readyState": 4,
+    "error": null
+  },
+  "middleSeek": {
+    "currentTime": 30.8722,
+    "readyState": 4,
+    "error": null
+  },
+  "lateSeek": {
+    "currentTime": 54.8709,
+    "readyState": 4,
+    "error": null
+  },
+  "reloadPlayback": {
+    "currentTime": 0.8256,
+    "readyState": 4,
+    "error": null
+  },
+  "mediaResponses": [
+    {
+      "status": 206,
+      "range": "bytes=0-"
+    },
+    {
+      "status": 206,
+      "range": "bytes=51871744-"
+    },
+    {
+      "status": 206,
+      "range": "bytes=92798976-"
+    },
+    {
+      "status": 206,
+      "range": "bytes=0-"
+    }
+  ],
+  "videoRetainedForBackendInspection": true,
+  "loggedOut": true,
+  "result": "PASS"
+}

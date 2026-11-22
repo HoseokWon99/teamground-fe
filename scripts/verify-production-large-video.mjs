@@ -1,0 +1,118 @@
+// Explicitly authorized synthetic production QA. Never logs credentials or media URLs.
+import { chromium, expect } from '@playwright/test';
+import { readFile, stat, mkdir, writeFile } from 'node:fs/promises';
+const base = 'https://app.jointeamground.com';
+const fixturePath = process.env.TEAMGROUND_PRODUCTION_FIXTURE;
+if (!fixturePath?.startsWith('/') || (await stat(fixturePath)).mode & 0o077) throw new Error('Private 0600 fixture required');
+const fixture = JSON.parse(await readFile(fixturePath, 'utf8'));
+const { email, password, teamspaceId: team, occurrenceId: occurrence } = fixture;
+if (team !== '641aedf5-a8f7-4cfd-8706-11b2ac1aaf86' || occurrence !== 'bdb6121c-428f-4c42-a02a-4255bef0ef4a' || !email.endsWith('@example.test')) throw new Error('Unapproved synthetic scope');
+const output = 'output/playwright/video-large-production';
+const file = `${output}/near-limit.mp4`, oversized = `${output}/over-limit.mp4`;
+const bytes = (await stat(file)).size, oversizedBytes = (await stat(oversized)).size;
+if (bytes < 99 * 1024 ** 2 || bytes > 100 * 1024 ** 2 || oversizedBytes <= 100 * 1024 ** 2) throw new Error('Fixture sizes outside test scope');
+await mkdir(output, { recursive: true });
+const evidence = { bytes, oversizedBytes, checks: [] };
+let stage = 'login', posts = 0;
+const browser = await chromium.launch();
+const context = await browser.newContext({ baseURL: base, viewport: { width: 1440, height: 1000 } });
+context.setDefaultTimeout(30000);
+await context.addInitScript(() => {
+  window.__videoProgress = [];
+  new MutationObserver(() => {
+    const el = document.querySelector('progress[aria-label="영상 업로드 진행률"]');
+    if (el && !window.__videoProgress.some(p => p.value === el.value)) window.__videoProgress.push({ value: el.value, atMs: Math.round(performance.now()) });
+  }).observe(document, { subtree: true, childList: true, attributes: true });
+});
+const page = await context.newPage();
+const media = [], errors = [];
+page.on('pageerror', error => errors.push(error.name));
+page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === `/api/v1/teamspaces/${team}/occurrences/${occurrence}/videos`) posts++; });
+page.on('response', response => {
+  if (/\.s3[.-][a-z0-9-]+\.amazonaws\.com$/.test(new URL(response.url()).hostname)) media.push({ status: response.status(), range: response.request().headers().range ?? null });
+});
+const title = '100 MiB 근접 실제 영상 검증';
+const message = '영상은 최대 100 MiB까지 업로드할 수 있습니다.';
+const screenshot = name => page.screenshot({ path: `${output}/${name}.png`, fullPage: true });
+try {
+  await page.goto('/login');
+  await page.getByLabel('이메일', { exact: true }).fill(email);
+  await page.getByLabel('비밀번호', { exact: true }).fill(password);
+  await page.getByRole('button', { name: '이메일로 로그인' }).click();
+  await expect(page).toHaveURL(/\/teams$/);
+  await page.goto(`/teams/${team}/occurrences/${occurrence}`);
+  stage = 'oversize UI';
+  const titleInput = page.getByLabel('영상 제목', { exact: true });
+  const fileInput = page.getByLabel('영상 파일', { exact: true });
+  const save = page.getByRole('button', { name: '영상 저장', exact: true });
+  await titleInput.fill(title);
+  await fileInput.setInputFiles(oversized);
+  await expect(page.getByText(message, { exact: true })).toBeVisible();
+  await expect(save).toBeDisabled();
+  await expect(titleInput).toHaveValue(title);
+  expect(await fileInput.evaluate(el => el.files[0].size)).toBe(oversizedBytes);
+  await screenshot('oversize-desktop');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByText(message, { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await screenshot('oversize-mobile');
+  expect(posts).toBe(0);
+  evidence.oversize = { message, uploadPosts: posts, saveDisabled: true, titlePreserved: true, filePreserved: true, mobileNoOverflow: true };
+  await fileInput.setInputFiles(file);
+  await expect(page.getByText(message, { exact: true })).toHaveCount(0);
+  await expect(save).toBeEnabled();
+  await expect(titleInput).toHaveValue(title);
+  evidence.validSelectionClearedError = true;
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await screenshot('valid-selected-desktop');
+  stage = 'multipart upload';
+  const start = Date.now();
+  const responsePromise = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === `/api/v1/teamspaces/${team}/occurrences/${occurrence}/videos`, { timeout: 240000 });
+  await save.click();
+  const response = await responsePromise;
+  evidence.upload = { status: response.status(), elapsedMs: Date.now() - start, posts };
+  expect(response.status()).toBe(201);
+  await expect(page.getByRole('link', { name: new RegExp(title) })).toBeVisible();
+  evidence.upload.progress = await page.evaluate(() => window.__videoProgress);
+  expect(evidence.upload.progress.some(p => p.value === 100)).toBe(true);
+  expect(posts).toBe(1);
+  await page.getByRole('link', { name: new RegExp(title) }).click();
+  evidence.videoId = new URL(page.url()).pathname.split('/').at(-1);
+  stage = 'playback and seeking';
+  const player = page.locator('video');
+  await expect(player).toBeVisible();
+  await expect.poll(() => player.evaluate(el => Number.isFinite(el.duration) && el.duration), { timeout: 60000 }).toBeGreaterThan(59);
+  evidence.duration = await player.evaluate(el => el.duration);
+  async function playFrom(target) {
+    await player.evaluate(async (el, time) => { el.muted = true; el.currentTime = time; await el.play(); }, target);
+    await expect.poll(() => player.evaluate(el => el.currentTime), { timeout: 60000 }).toBeGreaterThan(target + 0.5);
+    return player.evaluate(el => { const value = { currentTime: el.currentTime, readyState: el.readyState, error: el.error?.code ?? null }; el.pause(); return value; });
+  }
+  evidence.initialPlayback = await playFrom(0);
+  evidence.middleSeek = await playFrom(30);
+  evidence.lateSeek = await playFrom(54);
+  await screenshot('playback-desktop');
+  await page.reload();
+  await expect(player).toBeVisible();
+  evidence.reloadPlayback = await playFrom(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await screenshot('playback-mobile');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  evidence.mediaResponses = media;
+  expect(media.some(r => r.status === 206 && r.range)).toBe(true);
+  evidence.videoRetainedForBackendInspection = true;
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await expect(page).toHaveURL(/\/login/);
+  expect(errors).toEqual([]);
+  evidence.loggedOut = true;
+  evidence.result = 'PASS';
+  await writeFile(`${output}/result.json`, JSON.stringify(evidence, null, 2));
+  console.log(JSON.stringify(evidence));
+} catch (error) {
+  // Avoid login screenshots because they can contain private fixture values.
+  if (stage !== 'login') await screenshot('failure');
+  await writeFile(`${output}/result.json`, JSON.stringify({ ...evidence, stage, result: 'FAIL', errorType: error.name }, null, 2));
+  console.error(JSON.stringify({ result: 'FAIL', stage, errorType: error.name }));
+  process.exitCode = 1;
+} finally { await browser.close(); }
