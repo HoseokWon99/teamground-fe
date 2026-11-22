@@ -97,3 +97,7 @@ SMTP `localhost:11025`), 프론트엔드 개발 서버를 실행한 뒤
 API 기본값은 `/api/v1`입니다. FE와 BE를 같은 사이트의 서로 다른 origin으로 배포하는 경우 `.env.example`처럼 `VITE_API_BASE_URL=https://jointeamground.com/api/v1`를 빌드 시 설정합니다. 서버 CORS는 FE origin과 credential 요청을 허용해야 합니다. 잘못된 base URL은 오류로 처리합니다. `vercel.json`은 Git 자동 배포를 비활성화합니다.
 
 범위와 미검증 항목은 [API 연동 보고서](docs/reports/frontend-2026-11-22-api-integration/README.md)를 참고하세요. 로컬 BE/Mailpit 통합 테스트는 실행 중인 localhost:8080 BE, SMTP :11025, Mailpit :18025, FE 127.0.0.1:5173 환경에서 `pnpm exec playwright test --config playwright.integration.config.ts`로 실행합니다. 운영 환경에는 실행하지 마세요.
+
+## 운영 배포
+
+운영 프론트엔드는 https://app.jointeamground.com 에서 제공합니다. 완성 UI main `3f3d199`를 기존 GitHub Actions production 파이프라인으로 단발 배포했습니다. 자동 배포는 비활성 상태를 유지합니다. [배포·리뷰·검증 기록](docs/reports/frontend-2026-11-22-production-ui/README.md)에 배포 소스와 확인 범위, 미검증 항목을 기록합니다.
