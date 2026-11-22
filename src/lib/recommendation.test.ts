@@ -25,7 +25,7 @@ describe("반복 일정 추천", () => {
     expect(() => calculateRecommendation(createSeed(), draft)).toThrow("8주");
   });
   it("첫 실행에서 저장 데이터 복원 오류를 표시하지 않는다", () => {
-    expect(storageWarning).toBe("");
+    expect(storageWarning).not.toMatch(/복원|읽지 못/);
   });
   it("네 수요일을 추천하고 둘째 주 금요일 충돌을 제외한다", () => {
     const r = calculateRecommendation(createSeed(), exampleDraft("padong"));

@@ -271,6 +271,11 @@ export function MembersPage() {
     resolver: zodResolver(inviteSchema),
     defaultValues: { email: "" },
   });
+  const { isDirty: inviteDirty, isSubmitting: inviting } = form.formState;
+  const markInviteSaved = useUnsavedChanges(
+    open && inviteDirty,
+    open && inviting,
+  );
   const team = teams.find((t) => t.id === teamId);
   const ownMembership = memberships.find(
     (m) => m.teamId === teamId && m.userId === sessionUserId,
@@ -292,6 +297,7 @@ export function MembersPage() {
           : "데모 초대가 생성되었습니다. 실제 메일은 발송되지 않습니다.",
       );
       form.reset();
+      markInviteSaved();
       setOpen(false);
     } catch (e) {
       setError(errorMessage(e));
@@ -445,7 +451,9 @@ export function MembersPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              form.setValue("email", invite.email);
+                              form.setValue("email", invite.email, {
+                                shouldDirty: true,
+                              });
                               setError("");
                               setOpen(true);
                             }}
@@ -487,6 +495,7 @@ export function MembersPage() {
       )}
       <Modal
         open={open}
+        closeDisabled={inviting}
         onOpenChange={(next) => {
           if (form.formState.isSubmitting) return;
           if (
@@ -495,6 +504,10 @@ export function MembersPage() {
             !window.confirm("입력한 이메일을 저장하지 않고 닫을까요?")
           )
             return;
+          if (!next) {
+            form.reset();
+            markInviteSaved();
+          }
           setOpen(next);
         }}
         title="함께할 멤버 초대"
@@ -507,12 +520,16 @@ export function MembersPage() {
               autoFocus
               className="input"
               type="email"
+              disabled={inviting}
+              aria-describedby={
+                form.formState.errors.email ? "invite-email-error" : undefined
+              }
               placeholder="seoyeon@teamground.demo"
               aria-invalid={!!form.formState.errors.email}
               {...form.register("email")}
             />
             {form.formState.errors.email && (
-              <span className="field-error">
+              <span id="invite-email-error" className="field-error">
                 {form.formState.errors.email.message}
               </span>
             )}
