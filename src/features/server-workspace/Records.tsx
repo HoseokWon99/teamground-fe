@@ -451,7 +451,7 @@ function VideoContent({
           onClick={async () => {
             if (
               await action.confirm(
-                "영상을 삭제하면 연결된 모든 피드백도 삭제됩니다. 외부 원본 영상은 삭제하지 않습니다. 계속할까요?",
+                "영상을 삭제하면 업로드한 파일과 연결된 모든 피드백이 삭제되며, 작성 중인 피드백도 사라집니다. 계속할까요?",
               )
             )
               void action.run(async () => {
@@ -459,6 +459,7 @@ function VideoContent({
                   method: "DELETE",
                   version: video.version,
                 });
+                clearFeedbackDirty();
                 navigate(`/teams/${teamId}/occurrences/${video.occurrenceId}`);
               });
           }}
