@@ -363,10 +363,10 @@ function Layout() {
 }
 function PublicLayout() {
   return (
-    <>
+    <main>
       <StorageNotice />
       <Outlet />
-    </>
+    </main>
   );
 }
 class ErrorBoundary extends Component<

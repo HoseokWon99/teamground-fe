@@ -22,7 +22,7 @@ export interface ButtonProps
 }
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { className, variant, size, asChild = false, type = "button", ...props },
+    { className, variant, size, asChild = false, type = "button", onClick, ...props },
     ref,
   ) => {
     const Comp = asChild ? Slot : "button";
@@ -32,6 +32,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={asChild ? undefined : type}
         className={cn(buttonVariants({ variant, size, className }))}
         {...props}
+        onClick={(event) => {
+          // WebKit pointer clicks do not focus buttons; dialogs need an opener to restore.
+          if (!asChild) event.currentTarget.focus({ preventScroll: true });
+          onClick?.(event);
+        }}
       />
     );
   },
