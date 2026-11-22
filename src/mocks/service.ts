@@ -1,6 +1,5 @@
 import type { Data, Draft, PersonalEvent, Video } from "../lib/types";
 import { useAppStore } from "../stores/useAppStore";
-import { calculateRecommendation } from "../lib/recommendation";
 import { createSeed } from "./seed";
 const state = () => useAppStore.getState();
 const set = (data: Partial<Data>) => useAppStore.setState(data);
@@ -306,7 +305,8 @@ export const service = {
       });
     }),
   recommend: (draft: Draft) =>
-    request(`recommend:${JSON.stringify(draft)}`, () => {
+    request(`recommend:${JSON.stringify(draft)}`, async () => {
+      const { calculateRecommendation } = await import("../lib/recommendation");
       member(draft.teamId);
       const result = calculateRecommendation(state(), draft);
       set({
@@ -316,7 +316,8 @@ export const service = {
       return result;
     }),
   confirmCandidate: (teamId: string, candidateId: string) =>
-    request(`confirm:${teamId}:${candidateId}`, () => {
+    request(`confirm:${teamId}:${candidateId}`, async () => {
+      const { calculateRecommendation } = await import("../lib/recommendation");
       member(teamId, true);
       const r = state().recommendations[teamId];
       if (!r) throw new Error("추천을 먼저 조회해 주세요.");

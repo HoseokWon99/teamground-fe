@@ -89,7 +89,7 @@ test("390px 메뉴는 키보드 초점을 유지하고 닫힌 뒤 복원하며 �
   await menu.getByRole("link", { name: "내 일정", exact: true }).click();
   await expect(page).toHaveURL("/calendar");
   await expect(menu).toBeHidden();
-  await expect(page.getByRole("heading", { name: "2026년 10월" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2026년 10월", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

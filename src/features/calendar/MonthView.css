@@ -1,0 +1,80 @@
+.month-view-date,
+.month-view-agenda {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .month-view .month-view-desktop {
+    display: none !important;
+  }
+  .month-view .month-view-cell {
+    min-height: 56px !important;
+    padding: 2px !important;
+  }
+  .month-view-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 52px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #36533e;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .month-view-date small {
+    font-size: 10px;
+  }
+  .month-view-date[aria-pressed="true"] {
+    background: #36533e;
+    color: white;
+  }
+  .month-view-date:focus-visible,
+  .month-view-agenda button:focus-visible {
+    outline: 2px solid #36533e;
+    outline-offset: -2px;
+  }
+  .month-view-date[aria-pressed="true"]:focus-visible {
+    outline-color: white;
+    outline-offset: -4px;
+  }
+  .month-view-agenda {
+    display: block;
+    padding: 16px;
+    border-top: 1px solid var(--border, #e4e7df);
+  }
+  .month-view-agenda h3 {
+    font-size: 14px;
+    margin: 0 0 12px;
+  }
+  .month-view-agenda ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .month-view-agenda li + li {
+    margin-top: 8px;
+  }
+  .month-view-agenda button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #e4ede0;
+    color: #36533e;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  .month-view-time {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+}

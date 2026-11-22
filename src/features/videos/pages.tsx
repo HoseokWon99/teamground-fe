@@ -496,6 +496,7 @@ export function VideoPage() {
               preload="auto"
               onError={() => setFailed(true)}
               aria-label={video.title}
+              aria-describedby={video.url === "/demo/rehearsal.webm" ? "demo-video-description" : undefined}
             />
           ) : (
             <EmptyState
@@ -515,10 +516,10 @@ export function VideoPage() {
               }
             />
           )}
-          <div className="meta" style={{ padding: "12px 5px 2px" }}>
+          <div id={video.url === "/demo/rehearsal.webm" ? "demo-video-description" : undefined} className="meta" style={{ padding: "12px 5px 2px" }}>
             <VideoIcon size={14} />
-            {video.url.startsWith("/demo/")
-              ? "로컬 데모 · 추상 동선 샘플 · 8초"
+            {video.url === "/demo/rehearsal.webm"
+              ? "로컬 데모 · 녹색 격자 위 세 막대가 나타나는 8초 무음 재생 테스트 영상"
               : "외부 영상 · 원본 서비스의 접근 권한이 적용됩니다"}
           </div>
         </section>

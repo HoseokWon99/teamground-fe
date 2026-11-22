@@ -13,7 +13,6 @@ import {
   Users,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
-import { service } from "@/mocks/service";
 import { Button } from "@/components/ui/button";
 import {
   Avatar,
@@ -37,6 +36,7 @@ export function LoginPage() {
   const [selected, setSelected] = useState("jiwoo");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [reloadRequired, setReloadRequired] = useState(false);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const request = useRef<AbortController | null>(null);
@@ -49,12 +49,19 @@ export function LoginPage() {
     setCancelled(false);
     setBusy(true);
     setError("");
+    let serviceLoaded = false;
     try {
+      const { service } = await import("@/mocks/service");
+      serviceLoaded = true;
+      if (controller.signal.aborted) return;
       await service.login(selected, controller.signal);
       if (controller.signal.aborted) return;
       navigate(safeReturnTo(params.get("returnTo")), { replace: true });
     } catch (e) {
-      if (!controller.signal.aborted) setError(errorMessage(e));
+      if (!controller.signal.aborted) {
+        setReloadRequired(!serviceLoaded);
+        setError(serviceLoaded ? errorMessage(e) : "로그인 기능을 불러오지 못했습니다. 연결을 확인하고 새로고침해 주세요.");
+      }
     } finally {
       request.current = null;
       setBusy(false);
@@ -147,6 +154,7 @@ export function LoginPage() {
           </div>
         </fieldset>
         {error && <ErrorNotice message={error} />}
+        {reloadRequired && <Button variant="outline" onClick={() => window.location.reload()}>새로고침</Button>}
         <Button
           onClick={login}
           disabled={busy || !users.some((user) => user.id === selected)}
@@ -176,7 +184,7 @@ export function LoginPage() {
 export function InvitePage() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const { loading, error: loadError, retry } = useLoad();
+  const { loading, error: loadError, retry, reloadRequired } = useLoad();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const { invites, teams, users, sessionUserId, memberships } = useAppStore();
@@ -196,7 +204,7 @@ export function InvitePage() {
     setBusy(true);
     setError("");
     try {
-      const teamId = await service.acceptInvite(token);
+      const teamId = await (await import("@/mocks/service")).service.acceptInvite(token);
       navigate(`/teams/${teamId}`);
     } catch (e) {
       setError(errorMessage(e));
@@ -219,7 +227,7 @@ export function InvitePage() {
       ) : loadError ? (
         <>
           <ErrorNotice message={loadError} />
-          <Button onClick={retry}>다시 확인</Button>
+          <Button onClick={reloadRequired ? () => window.location.reload() : retry}>{reloadRequired ? "새로고침" : "다시 확인"}</Button>
         </>
       ) : !invite || !team ? (
         <EmptyState

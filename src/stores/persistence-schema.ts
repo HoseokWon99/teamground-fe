@@ -1,15 +1,15 @@
-import { z } from "zod";
+import { z } from "zod/mini";
 import type { Attendance, Data, Draft } from "@/lib/types";
 const string = z.string();
-const id = string.min(1);
-const date = string.regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+const id = string.check(z.minLength(1));
+const date = string.check(z.regex(/^\d{4}-\d{2}-\d{2}$/), z.refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);
   return (
     Number.isFinite(+parsed) && parsed.toISOString().slice(0, 10) === value
   );
-});
-const time = string.regex(/^([01]\d|2[0-3]):[0-5]\d$/);
-const datetime = string.refine((value) => {
+}));
+const time = string.check(z.regex(/^([01]\d|2[0-3]):[0-5]\d$/));
+const datetime = string.check(z.refine((value) => {
   return (
     date.safeParse(value.slice(0, 10)).success &&
     /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d{1,3})?)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)?$/.test(
@@ -17,19 +17,19 @@ const datetime = string.refine((value) => {
     ) &&
     Number.isFinite(Date.parse(value))
   );
-});
-const localDatetime = datetime.refine(
+}));
+const localDatetime = datetime.check(z.refine(
   (value) => !/(Z|[+-]\d{2}:\d{2})$/.test(value),
-);
-const count = z.number().int().nonnegative();
-const videoUrl = string.refine((value) => {
+));
+const count = z.number().check(z.int(), z.gte(0));
+const videoUrl = string.check(z.refine((value) => {
   if (value === "/demo/rehearsal.webm") return true;
   try {
     return ["http:", "https:"].includes(new URL(value).protocol);
   } catch {
     return false;
   }
-});
+}));
 const attendance = z.object({
   userId: id,
   status: z.enum(["available", "busy", "unknown"]),
@@ -39,8 +39,8 @@ const draft = z.object({
   title: string,
   from: date,
   to: date,
-  duration: z.number().min(30).max(240).multipleOf(30),
-  weekdays: z.array(z.number().int().min(0).max(6)),
+  duration: z.number().check(z.gte(30), z.lte(240), z.multipleOf(30)),
+  weekdays: z.array(z.number().check(z.int(), z.gte(0), z.lte(6))),
   startTime: time,
   endTime: time,
   mode: z.enum(["all", "required"]),
@@ -83,7 +83,7 @@ const schema = z.object({
       start: localDatetime,
       end: localDatetime,
       source: z.enum(["manual", "google"]),
-      allDay: z.boolean().optional(),
+      allDay: z.optional(z.boolean()),
     }),
   ),
   calendars: z.array(
@@ -91,7 +91,7 @@ const schema = z.object({
       userId: id,
       connected: z.boolean(),
       syncState: z.enum(["idle", "success", "error"]),
-      lastSync: datetime.optional(),
+      lastSync: z.optional(datetime),
       confirmed: z.boolean(),
       from: date,
       to: date,
@@ -128,7 +128,7 @@ const schema = z.object({
       authorId: id,
       body: string,
       createdAt: datetime,
-      updatedAt: datetime.optional(),
+      updatedAt: z.optional(datetime),
     }),
   ),
   drafts: z.record(string, draft),
@@ -139,10 +139,10 @@ const schema = z.object({
       candidates: z.array(
         z.object({
           id: id,
-          weekday: z.number().int().min(0).max(6),
+          weekday: z.number().check(z.int(), z.gte(0), z.lte(6)),
           startTime: time,
           endTime: time,
-          dates: z.array(date).min(1),
+          dates: z.array(date).check(z.minLength(1)),
           attendance: z.array(z.array(attendance)),
         }),
       ),
@@ -152,7 +152,7 @@ const schema = z.object({
     }),
   ),
   revision: count,
-  sessionUserId: string.nullable(),
+  sessionUserId: z.nullable(string),
   failNext: z.boolean(),
 });
 

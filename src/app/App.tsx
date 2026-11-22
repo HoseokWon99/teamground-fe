@@ -3,8 +3,6 @@ import {
   Suspense,
   lazy,
   type ReactNode,
-  useEffect,
-  useState,
 } from "react";
 import {
   createBrowserRouter,
@@ -14,29 +12,16 @@ import {
   Navigate,
   Outlet,
   useLocation,
-  useNavigate,
   useParams,
-  NavLink,
   Link,
 } from "react-router-dom";
-import {
-  CalendarDays,
-  Users,
-  Grid2X2,
-  Sprout,
-  ArrowUpRight,
-  LogOut,
-  Menu,
-  SlidersHorizontal,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
-import { service } from "@/mocks/service";
-import { Modal } from "@/components/ui/modal";
 import { StorageNotice } from "@/components/StorageNotice";
 import { Button } from "@/components/ui/button";
-import { Avatar, EmptyState, ErrorNotice } from "@/components/common";
-import { UnsavedChangesProvider, useUnsavedActions } from "./unsaved-changes";
+import { EmptyState } from "@/components/common";
+import { UnsavedChangesProvider } from "./unsaved-changes";
+const Layout = lazy(() => import("./WorkspaceLayout"));
 const LoginPage = lazy(() =>
   import("@/features/auth/pages").then((m) => ({ default: m.LoginPage })),
 );
@@ -111,254 +96,6 @@ function TeamGuard() {
         </Button>
       }
     />
-  );
-}
-function DemoTools() {
-  const { runAfterDiscard } = useUnsavedActions();
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const navigate = useNavigate();
-  async function run(fn: () => unknown) {
-    setBusy(true);
-    setError("");
-    try {
-      await fn();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "처리하지 못했습니다");
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <details className="demo-tools">
-      <summary>
-        <SlidersHorizontal
-          size={13}
-          style={{ display: "inline", marginRight: 6 }}
-        />{" "}
-        발표용 데모 도구
-      </summary>
-      <div className="row">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy}
-          onClick={() => {
-            if (
-              confirm(
-                "팀, 일정, 댓글을 발표 기본 상태로 초기화합니다. 계속할까요?",
-              )
-            )
-              void run(() => runAfterDiscard(() => service.reset(), "/login"));
-          }}
-        >
-          <RotateCcw size={13} />
-          데모 초기화
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() =>
-            navigate(`/login?returnTo=${encodeURIComponent(location.pathname)}`)
-          }
-        >
-          계정 전환
-        </Button>
-        {(["missing", "none", "changed"] as const).map((s, i) => (
-          <Button
-            key={s}
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              if (
-                confirm("추천에 사용하는 일정 데이터가 변경됩니다. 계속할까요?")
-              )
-                void run(() => service.setScenario(s));
-            }}
-          >
-            {["일정 미확인", "후보 없음", "확정 전 변경"][i]}
-          </Button>
-        ))}
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={busy}
-          onClick={() => void run(() => service.failNext())}
-        >
-          다음 요청 실패
-        </Button>
-      </div>
-      <ErrorNotice message={error} />
-      <p style={{ marginTop: 10 }}>
-        시나리오를 변경한 뒤 기본 시연으로 돌아가려면 데모를 초기화하세요.
-      </p>
-    </details>
-  );
-}
-function Layout() {
-  const { runAfterDiscard } = useUnsavedActions();
-  const state = useAppStore();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState("");
-  const teamId = location.pathname.match(/^\/teams\/([^/]+)/)?.[1];
-  const teams = state.teams.filter((t) =>
-    state.memberships.some(
-      (m) => m.teamId === t.id && m.userId === state.sessionUserId,
-    ),
-  );
-  const team = teams.find((t) => t.id === teamId);
-  const user = state.users.find((u) => u.id === state.sessionUserId);
-  const role = state.memberships.find(
-    (m) => m.teamId === teamId && m.userId === state.sessionUserId,
-  )?.role;
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 761px)");
-    const closeOnDesktop = () => {
-      if (media.matches) setOpen(false);
-    };
-    media.addEventListener("change", closeOnDesktop);
-    return () => media.removeEventListener("change", closeOnDesktop);
-  }, []);
-  const navigation = (
-    <nav aria-label="작업 공간 메뉴" className="workspace-navigation">
-      <Link className="brand" to="/teams" onClick={() => setOpen(false)}>
-        <span className="brand-mark">
-          <Sprout size={21} />
-        </span>
-        teamground<span style={{ color: "#acb88d" }}>.</span>
-      </Link>
-      <p className="sidebar-section">WORKSPACE</p>
-      <NavLink
-        to="/teams"
-        end
-        className="nav-item"
-        onClick={() => setOpen(false)}
-      >
-        <Grid2X2 size={18} />내 팀 목록
-      </NavLink>
-      {team && (
-        <>
-          <NavLink
-            end
-            to={`/teams/${team.id}`}
-            className="nav-item"
-            onClick={() => setOpen(false)}
-          >
-            <CalendarDays size={18} />팀 일정
-          </NavLink>
-          <NavLink
-            to={`/teams/${team.id}/members`}
-            className="nav-item"
-            onClick={() => setOpen(false)}
-          >
-            <Users size={18} />팀 멤버
-          </NavLink>
-        </>
-      )}
-      <p className="sidebar-section">PERSONAL</p>
-      <NavLink
-        to="/calendar"
-        className="nav-item"
-        onClick={() => setOpen(false)}
-      >
-        <CalendarDays size={18} />내 일정
-      </NavLink>
-      <div className="sidebar-bottom">
-        <div className="sidebar-note">
-          <strong>함께 만드는 다음 장면</strong>흩어진 시간을 모으고,
-          <br />
-          우리의 연습을 기록해요.
-          <Sprout size={27} style={{ marginTop: 16, color: "#8ea772" }} />
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={async () => {
-            try {
-              await runAfterDiscard(() => service.logout(), "/login");
-            } catch (e) {
-              setError(String(e));
-            }
-          }}
-        >
-          <LogOut size={15} />
-          로그아웃
-        </Button>
-      </div>
-    </nav>
-  );
-  return (
-    <>
-      <a
-        className="skip-link"
-        href="#main-content"
-        onClick={(event) => {
-          event.preventDefault();
-          document.getElementById("main-content")?.focus();
-        }}
-      >
-        본문으로 건너뛰기
-      </a>
-      <aside className="sidebar">{navigation}</aside>
-      <Modal
-        id="mobile-navigation"
-        open={open}
-        onOpenChange={setOpen}
-        title="작업 공간 메뉴"
-      >
-        {navigation}
-      </Modal>
-      <div className="workspace">
-        <header className="topbar">
-          <div className="row">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="mobile-menu"
-              aria-label="메뉴 열기"
-              aria-expanded={open}
-              aria-controls="mobile-navigation"
-              onClick={() => setOpen(!open)}
-            >
-              <Menu size={20} />
-            </Button>
-            <select
-              aria-label="팀 전환"
-              value={team?.id || ""}
-              onChange={(e) =>
-                navigate(e.target.value ? `/teams/${e.target.value}` : "/teams")
-              }
-            >
-              <option value="">내 작업 공간</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            {team && (
-              <span className="badge">
-                {role === "admin" ? "관리자" : "멤버"}
-              </span>
-            )}
-          </div>
-          <div className="topbar-right">
-            <span className="demo-label">DEMO · 이 브라우저에 저장됩니다</span>
-            <span className="user-name">{user?.name}</span>
-            <Avatar user={user} />
-          </div>
-        </header>
-        <main id="main-content" tabIndex={-1} className="main-content">
-          <StorageNotice />
-          <ErrorNotice message={error} />
-          <Outlet />
-          <DemoTools />
-        </main>
-      </div>
-    </>
   );
 }
 function PublicLayout() {
