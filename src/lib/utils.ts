@@ -12,7 +12,7 @@ export function displayDate(value: string) {
   }).format(
     new Date(
       value.includes("T")
-        ? /[Z+]/.test(value)
+        ? /(?:Z|[+-]\d{2}:\d{2})$/.test(value)
           ? value
           : `${value}+09:00`
         : `${value}T00:00:00+09:00`,

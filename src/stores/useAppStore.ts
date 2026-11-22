@@ -1,182 +1,130 @@
 import { create } from "zustand";
-import { z } from "zod";
 import {
   createJSONStorage,
   persist,
   type StateStorage,
 } from "zustand/middleware";
-import type { Data } from "../lib/types";
-import { createSeed } from "../mocks/seed";
-export let storageWarning = "";
-const storage: StateStorage = {
-  getItem(name) {
-    try {
-      return globalThis.localStorage?.getItem(name) ?? null;
-    } catch {
-      storageWarning =
-        "브라우저 저장소를 사용할 수 없어 이번 실행에서만 데이터를 유지합니다.";
-      return null;
-    }
-  },
-  setItem(name, value) {
-    try {
-      globalThis.localStorage?.setItem(name, value);
-    } catch {
-      storageWarning =
-        "브라우저 저장에 실패했습니다. 이번 실행에서만 데이터를 유지합니다.";
-    }
-  },
-  removeItem(name) {
-    try {
-      globalThis.localStorage?.removeItem(name);
-    } catch {
-      /* Memory state remains available. */
-    }
-  },
-};
-const string = z.string();
-const attendance = z.object({
-  userId: string,
-  status: z.enum(["available", "busy", "unknown"]),
-});
-const draft = z.object({
-  teamId: string,
-  title: string,
-  from: string,
-  to: string,
-  duration: z.number(),
-  weekdays: z.array(z.number()),
-  startTime: string,
-  endTime: string,
-  mode: z.enum(["all", "required"]),
-  requiredIds: z.array(string),
-});
-const schema = z.object({
-  users: z.array(
-    z.object({ id: string, name: string, email: string, color: string }),
-  ),
-  teams: z.array(
-    z.object({
-      id: string,
-      name: string,
-      description: string,
-      category: string,
+import type { Data } from "@/lib/types";
+import { createSeed } from "@/mocks/seed";
+import {
+  normalizePersistedData,
+  validPersistedData,
+} from "./persistence-schema";
+import { setStorageWarning } from "./storage-warning";
+export { storageWarning } from "./storage-warning";
+
+export const STORAGE_KEY = "teamground-prototype-v1";
+const unavailable =
+  "브라우저 저장소를 사용할 수 없어 이번 실행에서만 데이터를 유지합니다. 새로고침하면 변경 내용이 사라질 수 있습니다.";
+const invalid =
+  "저장 데이터를 복원할 수 없어 기본 데모로 시작합니다. 기존 저장 데이터는 보존하며 이번 실행의 변경은 저장하지 않습니다.";
+type BrowserStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+export function createAppStore(
+  getStorage: () => BrowserStorage | undefined = () => globalThis.localStorage,
+) {
+  // A failed read must never turn a later write into silent replacement of unread data.
+  let preserveStoredData = false;
+  const storage: StateStorage = {
+    getItem(name) {
+      try {
+        const target = getStorage();
+        if (!target) {
+          setStorageWarning(unavailable);
+          return null;
+        }
+        const raw = target.getItem(name);
+        if (raw === null) return null;
+        const envelope: unknown = JSON.parse(raw);
+        if (
+          typeof envelope !== "object" ||
+          envelope === null ||
+          !("version" in envelope) ||
+          envelope.version !== 1 ||
+          !("state" in envelope) ||
+          !validPersistedData(envelope.state)
+        ) {
+          preserveStoredData = true;
+          setStorageWarning(invalid);
+          return null;
+        }
+        return raw;
+      } catch {
+        preserveStoredData = true;
+        setStorageWarning(invalid + " 브라우저 저장소 접근도 확인해 주세요.");
+        return null;
+      }
+    },
+    setItem(name, value) {
+      if (preserveStoredData) return;
+      try {
+        const target = getStorage();
+        if (!target) {
+          setStorageWarning(unavailable);
+          return;
+        }
+        target.setItem(name, value);
+      } catch {
+        setStorageWarning(
+          "브라우저 저장에 실패했습니다. 변경 내용은 이번 실행에서만 유지되며 새로고침하면 사라질 수 있습니다.",
+        );
+      }
+    },
+    removeItem(name) {
+      try {
+        const target = getStorage();
+        if (!target) {
+          setStorageWarning(unavailable);
+          return;
+        }
+        target.removeItem(name);
+        preserveStoredData = false;
+        setStorageWarning("");
+      } catch {
+        setStorageWarning(
+          "브라우저 저장 데이터를 삭제하지 못했습니다. 기존 저장 데이터가 남아 있습니다.",
+        );
+      }
+    },
+  };
+  const store = create<Data>()(
+    persist(() => createSeed(), {
+      name: STORAGE_KEY,
+      version: 1,
+      storage: createJSONStorage(() => storage),
+      merge(persisted, current) {
+        return validPersistedData(persisted)
+          ? { ...persisted, failNext: false }
+          : current;
+      },
     }),
-  ),
-  memberships: z.array(
-    z.object({
-      teamId: string,
-      userId: string,
-      role: z.enum(["admin", "member"]),
-    }),
-  ),
-  invites: z.array(
-    z.object({
-      id: string,
-      teamId: string,
-      email: string,
-      token: string,
-      status: z.enum(["pending", "accepted"]),
-      expiresAt: string,
-    }),
-  ),
-  events: z.array(
-    z.object({
-      id: string,
-      userId: string,
-      title: string,
-      start: string,
-      end: string,
-      source: z.enum(["manual", "google"]),
-      allDay: z.boolean().optional(),
-    }),
-  ),
-  calendars: z.array(
-    z.object({
-      userId: string,
-      connected: z.boolean(),
-      syncState: z.enum(["idle", "success", "error"]),
-      lastSync: string.optional(),
-      confirmed: z.boolean(),
-      from: string,
-      to: string,
-    }),
-  ),
-  occurrences: z.array(
-    z.object({
-      id: string,
-      teamId: string,
-      seriesId: string,
-      title: string,
-      start: string,
-      end: string,
-      index: z.number(),
-      total: z.number(),
-      attendance: z.array(attendance),
-      revision: z.number(),
-    }),
-  ),
-  videos: z.array(
-    z.object({
-      id: string,
-      occurrenceId: string,
-      title: string,
-      url: string,
-      authorId: string,
-      createdAt: string,
-    }),
-  ),
-  feedback: z.array(
-    z.object({
-      id: string,
-      videoId: string,
-      authorId: string,
-      body: string,
-      createdAt: string,
-      updatedAt: string.optional(),
-    }),
-  ),
-  drafts: z.record(string, draft),
-  recommendations: z.record(
-    string,
-    z.object({
-      draft,
-      candidates: z.array(
-        z.object({
-          id: string,
-          weekday: z.number(),
-          startTime: string,
-          endTime: string,
-          dates: z.array(string),
-          attendance: z.array(z.array(attendance)),
-        }),
-      ),
-      revision: z.number(),
-      createdAt: string,
-      missingIds: z.array(string),
-    }),
-  ),
-  revision: z.number(),
-  sessionUserId: string.nullable(),
-  failNext: z.boolean(),
-});
-function valid(value: unknown): value is Data {
-  return schema.safeParse(value).success;
+  );
+  return Object.assign(store, {
+    replaceStoredData() {
+      try {
+        const target = getStorage();
+        if (!target) {
+          setStorageWarning(unavailable);
+          return false;
+        }
+        const state = normalizePersistedData(store.getState());
+        if (!state) {
+          setStorageWarning(
+            "현재 실행 데이터의 형식을 확인할 수 없어 저장하지 않았습니다. 기존 저장 데이터는 보존합니다.",
+          );
+          return false;
+        }
+        target.setItem(STORAGE_KEY, JSON.stringify({ state, version: 1 }));
+        preserveStoredData = false;
+        setStorageWarning("");
+        return true;
+      } catch {
+        setStorageWarning(
+          "브라우저 저장을 복구하지 못했습니다. 이번 실행의 데이터는 유지됩니다. 저장소 설정이나 용량을 확인한 뒤 다시 시도해 주세요.",
+        );
+        return false;
+      }
+    },
+  });
 }
-export const useAppStore = create<Data>()(
-  persist(() => createSeed(), {
-    name: "teamground-prototype-v1",
-    version: 1,
-    storage: createJSONStorage(() => storage),
-    merge(persisted, current) {
-      if (persisted === undefined) return current;
-      if (valid(persisted)) return { ...persisted, failNext: false };
-      storageWarning = "저장 데이터 형식이 변경되어 기본 데모로 복원했습니다.";
-      return current;
-    },
-    onRehydrateStorage: () => (_state, error) => {
-      if (error)
-        storageWarning = "저장 데이터를 읽지 못해 기본 데모로 시작합니다.";
-    },
-  }),
-);
+export const useAppStore = createAppStore();
