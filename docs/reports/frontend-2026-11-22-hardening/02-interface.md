@@ -47,4 +47,4 @@ pnpm dev --host 127.0.0.1 --port 5174
 
 중간 실행은 통과 근거에서 제외했다. HMR이 발생한 5173 서버에서 전체 Suspense 대기·동적 서비스 계측 모듈 차이가 관측되어 별도 5174로 바꿨다. 초기 조회가 완료되기 전 failNext를 설정하면 조회가 오류를 소비하므로 스크립트에 초기 목록 완료 대기를 추가했다. 모바일 모달 뒤의 opener는 aria-hidden이므로 상태 검사는 includeHidden으로 수행하고 Radix의 비동기 종료 초점 복원 완료를 기다리게 했다. 재실행 시작 viewport도 명시했다. 이는 검증의 준비·대기 보완이며 앱 코드를 수정하지 않았다.
 
-최종 스크립트는 `finally`에서 임시 confirm과 서비스 proxy를 복원하고 보류 promise를 해제한다. 로그/이전 아티팩트는 `/tmp/teamground-interface-final/`에 보관하며 이번 담당이 생성한 repo `.playwright-cli` 파일만 이동했다. 기존 `console-2026-11-22T03-39-16-393Z.log`는 건드리지 않았다.
+최종 스크립트는 `finally`에서 임시 confirm과 서비스 proxy를 복원하고 보류 promise를 해제한다. 로그/이전 아티팩트는 `/tmp/teamground-interface-final/`에 보관한다. 최초에 남겼던 `console-2026-11-22T03-39-16-393Z.log`도 작업 시작 시 사용자 변경에 포함되지 않은 검증 산출물임을 루트가 확인한 뒤 `prior-artifacts-preserved` 하위로 보존 이동했다. 삭제하거나 PR에 포함하지 않았다.

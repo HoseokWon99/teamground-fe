@@ -8,10 +8,10 @@
 
 | 순서 | 담당 | 작업·완료 기준 | 기록 | 상태 |
 |---|---|---|---|---|
-| 1 | fe_persistence | 정상 저장 복원 유지, 손상/미지원 데이터 안전 처리, 저장소 접근·쓰기 실패 안내와 메모리 동작, 의미 있는 회귀 테스트 | [01-persistence.md](01-persistence.md) | 진행 중 |
-| 2 | fe_hardening_qa | 11개 화면의 1440px/390px·키보드 사용성 감사, 발견 결함과 미검증 분리 | [03-audit.md](03-audit.md) | 진행 중 |
-| 3 | fe_accessibility | 개인일정·초대 입력 보호, 모바일 메뉴·감사 결함 개선, 저장 경고 UI 통합 | [02-interface.md](02-interface.md) | 진행 중 |
-| 4 | fe_hardening_qa / 루트 | 독립 브라우저 회귀, 타입·테스트·빌드 근거와 PR HEAD·CI 리뷰 | [04-independent-verification.md](04-independent-verification.md), [05-review.md](05-review.md) | 대기 |
+| 1 | fe_persistence | 정상 저장 복원 유지, 손상/미지원 데이터 안전 처리, 저장소 접근·쓰기 실패 안내와 메모리 동작, 의미 있는 회귀 테스트 | [01-persistence.md](01-persistence.md) | 완료·코드 리뷰 승인 |
+| 2 | fe_hardening_qa | 11개 화면의 1440px/390px·키보드 사용성 감사, 발견 결함과 미검증 분리 | [03-audit.md](03-audit.md) | 완료 |
+| 3 | fe_accessibility | 개인일정·초대 입력 보호, 모바일 메뉴·감사 결함 개선, 저장 경고 UI 통합 | [02-interface.md](02-interface.md) | 완료·코드 리뷰 승인 |
+| 4 | fe_hardening_qa / 루트 | 독립 브라우저 회귀, 타입·테스트·빌드 근거와 PR HEAD·CI 리뷰 | [04-independent-verification.md](04-independent-verification.md), [05-review.md](05-review.md) | 완료·코드 HEAD 승인 |
 
 ## 작업 경계
 
@@ -29,3 +29,11 @@
 4. 모바일 사이드바는 CSS 이동만으로 열며 aria-expanded/controls와 모달식 키보드 처리가 없다. 실제 감사에서 동작을 확인한 뒤 수정한다.
 
 [전체 작업 목록](../README.md)
+
+## 결과 및 확인 위치
+
+[PR #3](https://github.com/HoseokWon99/teamground-fe/pull/3)의 코드 HEAD `52b9b2183c2f75e4e9335369ac418d30e1b7c4d2`를 승인했다. 타입 검사·전체 61개 테스트·빌드가 통과했다. 독립 QA는 저장소 12사례·복구 2묶음, 키보드 4묶음, 이전 이동 회귀 4묶음, 영상 모달 12묶음을 확인했고, UI 담당은 새 인터페이스 회귀 5묶음과 실제 새로고침 취소를 확인했다. 11개 화면 × 2개 너비 기본 DOM 감사에서 가로 넘침·표시 컨트롤 이름 누락은 발견되지 않았다. 범위 내 미해결 제품 결함은 없다.
+
+최종 문서 커밋의 HEAD·체크 재확인과 Ready 전환 결과는 PR 본문에 기록한다. PR #1 → #2 → #3 순서의 의존 관계를 유지하며 머지는 수행하지 않았다. 백엔드 연동은 보류한다.
+
+이번 회차로 2차에 남긴 저장소·화면 사용성·개인일정/초대 보호 항목을 처리했다. Safari/Firefox, 스크린리더·전체 WCAG, 모든 오류·권한·빈 상태 조합은 미검증이며 전체 품질 인증을 뜻하지 않는다. 원본 데이터 보존 상태에서 명시적 복구를 수행하면 기존 브라우저 데이터가 대체되므로 앱이 확인창에서 영향을 안내한다.
