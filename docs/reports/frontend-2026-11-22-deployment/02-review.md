@@ -22,3 +22,9 @@
 루트는 요청 범위 안에서 신규 환경 두 개, main branch 제한, 운영 reviewer 및 비밀값 없는 repo ID 변수들을 설정했다. 활성화 값은 false다. 기존 Production/Preview 환경과 Vercel Git 연결은 유지했다. 환경별 토큰을 직접 등록하고 기존 Git 배포와의 전환을 마친 후 활성화해야 한다.
 
 구현 diff 승인. 앞선 테스트 보류 지시에 따라 새 테스트나 배포를 실행하지 않으며, 새 PR은 `[skip ci]` 커밋과 무검증 Draft로 공유한다. 최종 검토 HEAD는 PR 본문에 기록한다. 사용자 토큰을 읽거나 대신 생성하지 않는다.
+
+## PR #7 머지 요청 후속 리뷰
+
+위 내용은 최초 구현 당시의 기록이다. 후속 사용자 요청에 따라 fe_vercel_merge_hold에게 Git 자동 배포 차단을 위임했다. 루트는 기존 vercel.json 항목이 모두 보존되고 git.deploymentEnabled=false만 추가된 것을 확인했다. 이번에는 해당 파일도 추적하며 다른 사용자 변경 네 파일은 보존한다. Git 연결은 유지하지만 자동 배포는 차단한다.
+
+토큰 발급·환경별 등록 안내를 운영 문서에 추가했다. 정적 리뷰 후 Ready 전환 및 머지를 진행하며 추가 커밋과 머지 제목에 [skip ci]를 사용한다. 최종 승인 HEAD 및 실제 머지 SHA는 [PR #7](https://github.com/HoseokWon99/teamground-fe/pull/7) 본문에 기록한다. Actions 활성화는 false를 유지하고 테스트·빌드·워크플로 실행·실배포는 보류한다.

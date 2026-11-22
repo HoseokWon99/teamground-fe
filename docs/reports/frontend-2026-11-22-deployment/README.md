@@ -6,6 +6,8 @@
 
 ## 위임과 리뷰
 
+후속 PR #7 머지 요청에서는 `fe_vercel_merge_hold`에게 Git 자동 배포 차단을 위임했다. 아래 최초 구현 기록과 달리 루트 `vercel.json`도 기존 설정을 보존하고 `git.deploymentEnabled=false`를 추가해 추적한다. 다른 사용자 변경 네 파일은 보존한다. 추가 커밋과 머지 제목에 `[skip ci]`를 사용하고 Actions 활성화 값은 false를 유지한다. 최종 승인 HEAD와 머지 결과는 [PR #7](https://github.com/HoseokWon99/teamground-fe/pull/7) 본문에 기록한다. 토큰 등록 안내는 운영 문서에 추가했으며 테스트·실배포는 계속 보류한다.
+
 | 담당 | 작업 | 결과 |
 |---|---|---|
 | fe_vercel_pipeline | 워크플로·CI 전용 Vercel 설정·운영 안내 구현 | [01-implementation.md](01-implementation.md) |

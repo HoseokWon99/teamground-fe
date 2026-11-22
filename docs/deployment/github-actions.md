@@ -22,7 +22,7 @@ Production은 기존 `.github/workflows/quality.yml`의 typecheck·unit·build·
 1. GitHub Settings → Environments에 `vercel-production`, `vercel-preview`를 준비하고 deployment branches를 `main`으로 제한한다. Production에는 담당 required reviewer를 지정한다. 기존 `Production`/`Preview`와 별도 환경이다.
 2. 각 환경에 아래 값과 비밀값을 등록한다. 토큰은 사용자가 GitHub 설정 화면에서 직접 입력하고 채팅·명령 인수·문서에 붙여 넣지 않는다. 환경 변수 우선, 공통 IDs를 repository variables에 등록하는 것도 가능하다.
 3. Vercel 프로젝트의 Root Directory가 FE 저장소 루트이고 Node.js 22 및 Vite 설정이 맞는지 확인한다. 필요한 앱 환경 변수는 Vercel의 Preview/Production 대상에 각각 설정한다. `VITE_*`는 클라이언트 번들에 포함되므로 비밀값을 넣지 않는다.
-4. Vercel Git 자동 배포와 Actions가 동시에 Production을 배포하지 않도록 전환 계획을 확정한다. 아래 절차를 참고한다.
+4. 루트 vercel.json의 `git.deploymentEnabled=false`를 유지한다. 머지 시 기존 Git 연동이 자동 배포하지 않도록 차단한 설정이며, Actions 배포와 중복되지 않게 한다.
 5. 테스트 보류를 해제한 뒤 워크플로가 main에 반영되었는지 확인하고 opt-in 값을 `true`로 바꾼다. main 수동 Preview를 실행해 환경 다운로드·빌드·SPA 경로 새로고침을 확인한다. 이후 main push 품질 검사 성공과 Production 환경 승인을 통해 자동 배포를 검증한다. opt-in 변경 자체는 배포를 실행하지 않는다.
 
 | 종류 | 이름 | 값/설명 |
@@ -38,18 +38,25 @@ IDs는 로컬 프로젝트 연결 정보에서 확인한 대상이다. 연결 �
 
 Node.js 22, pnpm 10.29.1, Vercel CLI 66.6.0을 사용한다. Actions는 공식 저장소의 commit SHA로 고정한다. pnpm 버전은 `package.json`과 일치시킨다. CLI 설치 후 `vercel pull` → `vercel build` → `vercel deploy --prebuilt` 순서로 실행한다. Production은 pull의 environment와 build/deploy의 `--prod`를 함께 적용한다. Vercel build가 `pnpm install --frozen-lockfile`과 `pnpm build`를 수행한다.
 
-모든 Vercel 명령은 `--local-config=config/vercel.ci.json`으로 버전 관리되는 CI 전용 설정을 명시한다. 이 파일은 Vite, `dist`, frozen lockfile 설치, React Router의 `/index.html` fallback을 정의한다. 로컬의 미추적 `vercel.json`에는 의존하지 않는다. 두 설정을 앞으로 함께 유지한다면 설정 변경 시 차이를 리뷰해야 한다.
+모든 Vercel 명령은 `--local-config=config/vercel.ci.json`으로 CI 전용 설정을 명시한다. 이 파일은 Vite, `dist`, frozen lockfile 설치, React Router의 `/index.html` fallback을 정의한다. 루트 `vercel.json`은 기존 동일 설정을 유지하고 Git 자동 배포 차단 항목을 추가해 추적한다. 앱 빌드 설정을 변경할 때 두 파일의 공통 항목도 함께 리뷰한다.
 
 품질 검사의 artifact는 다운로드하지 않고 같은 커밋을 대상 환경에서 새로 빌드한다. 따라서 Production 앱 환경으로 만들어진 최종 산출물 자체의 브라우저 검증을 의미하지 않는다. `.vercel`의 환경 파일·빌드 결과는 업로드하지 않고 종료 시 제거한다. 성공한 배포의 URL·대상·커밋은 Actions summary에 남는다. summary URL 검증이 실패해도 배포 명령이 이미 성공했을 수 있으므로 재실행 전에 Vercel 배포 상태를 확인한다.
 
 ## Vercel Git 자동 배포 전환
 
-이번 변경에서는 기존 Git 자동 배포 설정을 바꾸지 않았다. 활성화 전에 프로젝트 소유자가 다음 중 하나를 선택한다.
+PR #7 머지와 실제 배포 보류를 함께 지키기 위해 루트 `vercel.json`에 `git.deploymentEnabled=false`를 추가했다. Git 연결 자체는 유지하지만 이 설정이 포함된 커밋의 자동 Git 배포는 차단한다. CI 전용 파일에만 이 값을 넣는 것으로는 Git 연동을 막을 수 없다. 이전 브랜치처럼 이 설정이 없는 커밋에는 차단이 적용되지 않을 수 있으므로, 보류 기간에는 해당 브랜치를 push하지 않는다.
 
-- Vercel 프로젝트 Settings → Git에서 Git 연결을 해제하여 전체 Git 자동 배포를 중단한다. Actions CLI 배포에는 Git 연결이 필수는 아니다. 기존 배포와 도메인 설정은 별도로 확인한다.
-- Git 연결을 유지한다면 Vercel 프로젝트 설정의 `git.deploymentEnabled`를 사용해 자동 배포할 브랜치를 제한한다. 이는 Vercel이 읽는 루트 `vercel.json`에 반영해야 하며, CI 전용 설정 파일에만 써서는 Git 자동 배포를 막지 못한다. main만 끌 경우 다른 브랜치 Preview는 계속 생성될 수 있다.
+Actions는 `VERCEL_ACTIONS_ENABLED=false`를 유지한다. 다시 Git 자동 배포로 전환하는 것은 별도 작업이며 이 차단 설정을 임의로 제거하지 않는다. Git 자동 배포 차단은 이미 서비스 중인 배포를 내리거나 도메인을 삭제하지 않는다.
 
-전환 전후에 같은 커밋의 중복 배포가 없는지 확인한다. Actions를 끌 때는 `VERCEL_ACTIONS_ENABLED=false`로 설정하고 이미 진행 중인 실행도 확인한다. 다시 Git 자동 배포로 전환하려면 앞서 해제한 연결 또는 브랜치 설정을 복구한다. Production 문제는 Vercel의 기존 정상 배포로 rollback할 수 있으나, rollback 이후 자동 도메인 할당 정책을 확인한 뒤 후속 배포를 재개한다.
+## 토큰 직접 발급·등록
+
+1. [Vercel Tokens](https://vercel.com/account/settings/tokens)에서 Create Token을 선택한다. 이름은 예를 들어 `teamground-github-actions`로 지정한다.
+2. Scope는 `teamground-fe` 프로젝트가 속한 팀(`hoseoks-projects-76438827`, team ID `team_er4AXNezYY2C1ysS4HHRmeZQ`)을 선택하고 만료 기간을 정한다. 프로젝트 제한 기능을 사용할 수 있다면 해당 프로젝트만 선택한다.
+3. 생성된 값을 [GitHub Environments](https://github.com/HoseokWon99/teamground-fe/settings/environments)의 `vercel-preview`와 `vercel-production` 각각에 등록한다. 각 환경의 Environment secrets → Add environment secret에서 Name은 정확히 `VERCEL_TOKEN`, Secret은 발급값이다. 같은 토큰을 두 환경에 등록할 수 있다.
+4. 토큰은 GitHub 설정에 직접 입력하고 채팅·문서·저장소·VITE 환경 변수에 넣지 않는다. org/project ID는 이미 repository variables에 등록돼 있다.
+5. 지금은 토큰 등록까지만 한다. `VERCEL_ACTIONS_ENABLED=false`를 유지하고 Run workflow를 누르지 않는다. 토큰 등록 자체는 테스트나 배포를 시작하지 않는다.
+
+토큰은 사용자가 직접 발급·등록하며 에이전트는 토큰 생성 API 호출이나 값 조회를 하지 않았다. [Vercel 인증 안내](https://vercel.com/docs/rest-api#authentication)
 
 ## 실행 보류와 후속 검증
 
