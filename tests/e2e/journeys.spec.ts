@@ -16,7 +16,7 @@ test("관리자가 추천을 확정하고 로컬 영상을 재생한 뒤 피드�
   const addVideo = page.getByRole("button", { name: "영상 추가", exact: true, includeHidden: true }).first();
   await addVideo.click();
   const modal = page.getByRole("dialog", { name: "연습 영상 추가" });
-  await modal.getByRole("button", { name: "로컬 데모 영상 선택" }).click();
+  await modal.getByLabel("영상 파일", { exact: true }).setInputFiles("public/demo/rehearsal.mp4");
   await modal.getByLabel("영상 제목").fill("회귀 연습 영상");
   await modal.getByRole("button", { name: "영상 추가", exact: true }).click();
   await expect(modal).toBeHidden();

@@ -47,6 +47,10 @@ const messages: Record<string, string> = {
   RATE_LIMITED: "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
   AUTH_MAIL_UNAVAILABLE:
     "현재 인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  UPLOAD_INTERRUPTED: "전송이 중단되었습니다. 서버에 저장되었을 수 있으니 최신 목록을 확인한 뒤 다시 시도해 주세요.",
+  VIDEO_STORAGE_UNAVAILABLE: "영상 저장소를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  VIDEO_FILE_TOO_LARGE: "영상은 최대 100 MiB까지 업로드할 수 있습니다.",
+  INVALID_VIDEO_FILE: "올바른 MP4 또는 WebM 영상 파일을 선택해 주세요.",
   CSRF_DENIED: "보안 확인이 만료되었습니다. 다시 시도해 주세요.",
 };
 export function explainError(error: unknown): string {
@@ -170,4 +174,46 @@ export function resolveApiBase(value: string | undefined): string {
 }
 export function apiUrl(path: string): string {
   return `${resolveApiBase(import.meta.env.VITE_API_BASE_URL)}${path}`;
+}
+
+// XHR exposes upload progress while keeping the existing session/CSRF contract.
+export async function uploadVideo<T>(
+  path: string,
+  value: { title: string; file: File },
+  onProgress: (percent: number) => void,
+  version?: number,
+  signal?: AbortSignal,
+): Promise<T> {
+  const csrf = await api<{ token: string }>("/auth/csrf");
+  if (signal?.aborted) throw new ApiError(0, "UPLOAD_INTERRUPTED");
+  const body = new FormData();
+  body.append("title", value.title);
+  const contentType = value.file.type || (/\.mp4$/i.test(value.file.name) ? "video/mp4" : "video/webm");
+  body.append("file", value.file.type ? value.file : new Blob([value.file], { type: contentType }), value.file.name);
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(version === undefined ? "POST" : "PATCH", apiUrl(path));
+    xhr.withCredentials = true;
+    xhr.timeout = 10 * 60 * 1000;
+    const abort = () => xhr.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    xhr.onloadend = () => signal?.removeEventListener("abort", abort);
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.setRequestHeader("X-CSRF-TOKEN", csrf.token);
+    if (version !== undefined) xhr.setRequestHeader("If-Match", `"${version}"`);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
+    };
+    xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(new ApiError(0, "UPLOAD_INTERRUPTED"));
+    xhr.onload = () => {
+      let payload;
+      try { payload = JSON.parse(xhr.responseText); } catch { /* non-JSON proxy error */ }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new ApiError(xhr.status, payload?.error?.code ?? (xhr.status === 413 ? "VIDEO_FILE_TOO_LARGE" : "SERVER_ERROR")));
+      } else if (!payload || typeof payload !== "object" || !("data" in payload)) {
+        reject(new ApiError(502, "INVALID_RESPONSE"));
+      } else resolve(payload.data as T);
+    };
+    xhr.send(body);
+  });
 }

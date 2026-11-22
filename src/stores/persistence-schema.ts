@@ -1,3 +1,4 @@
+import { isLocalVideo } from "@/lib/local-video";
 import { z } from "zod/mini";
 import type { Attendance, Data, Draft } from "@/lib/types";
 const string = z.string();
@@ -23,7 +24,7 @@ const localDatetime = datetime.check(z.refine(
 ));
 const count = z.number().check(z.int(), z.gte(0));
 const videoUrl = string.check(z.refine((value) => {
-  if (value === "/demo/rehearsal.webm") return true;
+  if (isLocalVideo(value) || value === "/demo/rehearsal.webm") return true;
   try {
     return ["http:", "https:"].includes(new URL(value).protocol);
   } catch {

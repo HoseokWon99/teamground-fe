@@ -1,3 +1,4 @@
+import { deleteLocalVideo, isLocalVideo } from "@/lib/local-video";
 import type { Data, Draft, PersonalEvent, Video } from "../lib/types";
 import { useAppStore } from "../stores/useAppStore";
 import { createSeed } from "./seed";
@@ -51,7 +52,7 @@ const text = (value: string, max: number, label: string) => {
   return v;
 };
 const videoUrl = (value: string) => {
-  if (value === "/demo/rehearsal.webm") return value;
+  if (isLocalVideo(value) || value === "/demo/rehearsal.webm") return value;
   try {
     const u = new URL(value);
     if (!["https:", "http:"].includes(u.protocol)) throw new Error();
@@ -376,12 +377,13 @@ export const service = {
       });
     }),
   deleteVideo: (videoId: string) =>
-    request(`delete-video:${videoId}`, () => {
-      video(videoId, true);
+    request(`delete-video:${videoId}`, async () => {
+      const removed = video(videoId, true);
       set({
         videos: state().videos.filter((v) => v.id !== videoId),
         feedback: state().feedback.filter((f) => f.videoId !== videoId),
       });
+      await deleteLocalVideo(removed.url).catch(() => undefined);
     }),
   addFeedback: (videoId: string, body: string) =>
     request(`feedback:${videoId}:${body}`, () => {
