@@ -26,10 +26,18 @@
 
 단계 2 첫 diff 검토: `VideoFormModal`이 RHF dirty 상태와 제출 잠금을 직접 관리하고 모든 모달 닫기 경로를 `requestClose`로 통합한다. 동기 ref 잠금으로 비동기 검증 전 중복 제출/닫기를 막고 `finally`에서 해제한다. 성공은 직접 닫고 실패는 오류와 입력을 유지한다. 변경은 영상 화면에 한정되며 mock 서비스·공통 모달·라우터·의존성 변경은 없다. 검증 오류 후 첫 필드 초점 및 조건부 마운트 해제 후 열기 버튼 초점 복원을 추가 검증 요청했다.
 
-현재 독립 검증 진행 중. 최종 diff, 검증 결과 및 PR HEAD를 확인하기 전에는 승인하지 않는다.
+최종 코드 diff와 [독립 검증 보고서](04-independent-verification.md)를 검토했다. 구현·독립 담당이 각각 12개 회귀 결과 묶음을 통과했고, 별도 390px 네이티브 확인창에서 수정 Escape/추가 취소의 입력 유지·폐기·초점 복원과 재열기 초기값을 확인했다. 요청했던 첫 오류 초점과 저장 후 초점 복원도 통과했다. 검증 전후 및 PR 코드 blob이 `bc7e6697bdfa19062dca206a5a1d126a096d7e4b`로 일치한다. 추가 수정 요청 없음.
 
 2026-11-22 기준 `gh api repos/HoseokWon99/teamground-fe/branches/main/protection` 조회는 `404 Branch not protected`를 반환했다. 로컬 `.github` 디렉터리는 없다. PR 생성 후 실제 check 목록과 결과를 별도로 확인하며, 이 사실만으로 CI가 통과했다고 판단하지 않는다.
 
 ## 승인 기록
 
-미승인. PR URL, 검토한 HEAD SHA, 검증 근거, Ready 전환 결과는 단계 완료 후 기록한다.
+- PR: [#1 영상 추가·수정 폼 입력 보호](https://github.com/HoseokWon99/teamground-fe/pull/1)
+- 구현 담당 보고 SHA와 `gh pr view 1 --json headRefOid` 결과 일치: `2afd2cbe84aa098bcfdc6f4ed8d26515f5c7a46d`.
+- 해당 코드 HEAD 승인: **승인**. 루트가 diff·검증 보고서·독립 재검증 결과를 검토했다. 이는 책임자 코드 검토 기록이며 GitHub 계정의 자기 PR 승인 review를 뜻하지 않는다.
+- 해당 HEAD 실제 check: `Vercel` SUCCESS, `Vercel Preview Comments` SUCCESS. 이 두 체크가 Vitest CI를 의미하지는 않으며 테스트 18개는 로컬 실행 결과다. 별도 필수 상태 검사는 브랜치 보호에 설정되어 있지 않다.
+- 기존 dirty 파일 5개는 PR에서 제외됨을 파일 목록으로 확인. 앱 변경은 `src/features/videos/pages.tsx` 하나이고 나머지는 이번 단계 보고서·검증 스크립트다.
+- 이 승인 기록과 독립 검증 보고서를 추가하는 마지막 문서 커밋 후 코드 blob 불변·새 PR HEAD·체크를 재확인하고 Ready for review로 전환한다. 최종 SHA와 전환 결과는 PR 본문에 기록한다(문서가 자기 자신의 커밋 SHA를 포함할 수 없으므로 외부 기록 사용).
+- 머지 및 프로덕션 직접 배포는 수행하지 않는다. 푸시에 따른 기존 Vercel 연결의 자동 preview 체크만 발생했다.
+
+남은 한계: 전역 미저장 이탈 보호, 전체 앱 접근성·타 브라우저, 배포 URL 동작은 미검증이다. 기존 Zod PURE 주석/번들 크기 경고는 남아 있으며 이번 변경으로 새로 도입된 빌드 실패는 없다.

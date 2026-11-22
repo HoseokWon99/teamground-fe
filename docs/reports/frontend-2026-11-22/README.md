@@ -13,10 +13,16 @@
 | 단계 | 담당 | 산출물 | 완료 기준 | 상태 |
 |---|---|---|---|---|
 | 1. 기준 상태 검증 | fe_verification | [01-baseline.md](01-baseline.md) | 타입·테스트·빌드, 실제 브라우저 핵심 흐름, 결함과 미검증 범위 기록 | 완료·루트 검토 완료 |
-| 2. 영상 입력 보호 개선 | fe_video_forms | [02-implementation.md](02-implementation.md), 코드, Draft PR | 수정/추가 모달 닫기 일관성, 저장 중 이탈 방지, 실패 입력 유지, 관련 회귀 검증 | 구현·검증 중 |
-| 3. 독립 재검증·리뷰 | fe_verification / 루트 | [03-review.md](03-review.md) | 변경 diff 검토, 독립 브라우저 재검증, PR HEAD·CI 확인 및 승인 기록 | 코드 1차 검토 완료·최종 검증 대기 |
+| 2. 영상 입력 보호 개선 | fe_video_forms | [02-implementation.md](02-implementation.md), 코드, [PR #1](https://github.com/HoseokWon99/teamground-fe/pull/1) | 수정/추가 모달 닫기 일관성, 저장 중 이탈 방지, 실패 입력 유지, 관련 회귀 검증 | 완료·루트 코드 승인 |
+| 3. 독립 재검증·리뷰 | fe_verification / 루트 | [03-review.md](03-review.md), [04-independent-verification.md](04-independent-verification.md) | 변경 diff 검토, 독립 브라우저 재검증, PR HEAD·CI 확인 및 승인 기록 | 독립 검증·코드 승인 완료 |
 
 구현·검증은 FE 전용 서브에이전트에게 위임하고, 루트는 요구사항 확인·범위 결정·코드 리뷰·문서 통합을 담당한다. 구현 에이전트가 작업 브랜치에 커밋·푸시하고 Draft PR을 만든다. 루트가 현재 HEAD와 검증 근거를 확인한 후 Ready for review로 전환한다. 머지는 별도 요청 전까지 수행하지 않는다.
+
+## 이번 회차 결과
+
+기존 테스트 18개, 타입 검사, 빌드 통과. 영상 모달 회귀 12개 결과 묶음을 구현·독립 담당이 각각 실행했고, 독립 담당이 390px 네이티브 확인창도 추가 확인했다. 검토한 코드 커밋은 `2afd2cbe84aa098bcfdc6f4ed8d26515f5c7a46d`이며 Vercel 체크 2개가 성공했다. 마지막 리뷰 문서 커밋의 HEAD 확인 및 Ready 전환 결과는 [PR #1](https://github.com/HoseokWon99/teamground-fe/pull/1) 본문에 기록한다.
+
+전체 프론트엔드의 모든 검증을 끝낸 것이 아니라, 이번 회차의 영상 모달 개선과 명시된 핵심 흐름 검증을 완료한 상태다. 백엔드 연동은 보류한다.
 
 ## 초기 리뷰 발견 사항
 
