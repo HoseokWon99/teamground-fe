@@ -93,3 +93,52 @@ test("video editing uses JSON for title, multipart for replacement and locks fee
   expect(types[0]).toBe("application/json");
   expect(types[1]).toContain("multipart/form-data; boundary=");
 });
+
+for (const draft of ["", "작성 중인 피드백"]) {
+  test(`successful video deletion returns to occurrence without another discard prompt (${draft ? "draft" : "empty"})`, async ({ page }) => {
+    let deletes = 0;
+    let failDelete = true;
+    const video = { id: "v", occurrenceId: "occ", authorId: "user", authorDisplayName: "회원", title: "삭제할 영상", sourceUrl: "/demo/rehearsal.mp4", playbackType: "DIRECT_MP4", everReceivedFeedback: true, version: 3 };
+    await page.route("**/api/v1/**", async (route) => {
+      const req = route.request();
+      const path = new URL(req.url()).pathname;
+      if (path.endsWith("/me")) return route.fulfill({ json: { data: { id: "user", displayName: "회원", verifiedEmail: "a@example.com", authMethod: "EMAIL" } } });
+      if (path.endsWith("/csrf")) return route.fulfill({ json: { data: { token: "csrf" } } });
+      if (path.endsWith("/videos/v")) {
+        if (req.method() === "DELETE") {
+          deletes++;
+          expect(req.headers()["if-match"]).toBe('"3"');
+          if (failDelete) return route.fulfill({ status: 503, json: { error: { code: "SERVER_ERROR" } } });
+          return route.fulfill({ status: 204 });
+        }
+        return route.fulfill({ json: { data: video } });
+      }
+      if (path.endsWith("/occurrences/occ")) return route.fulfill({ json: { data: { id: "occ", title: "원래 회차", sequence: 1, status: "SCHEDULED", startsAt: "2026-11-22T10:00:00Z", endsAt: "2026-11-22T11:00:00Z", members: [], version: 0 } } });
+      if (path.endsWith("/teamspaces/team")) return route.fulfill({ json: { data: { id: "team", name: "팀", role: "OWNER" } } });
+      return route.fulfill({ json: { data: [] } });
+    });
+    await page.goto("/teams/team/videos/v");
+    await page.getByRole("textbox", { name: "피드백 내용", exact: true }).fill(draft);
+    await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
+    expect(deletes).toBe(0);
+    await expect(page.getByRole("textbox", { name: "피드백 내용", exact: true })).toHaveValue(draft);
+    await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "확인", exact: true }).click();
+    await expect.poll(() => deletes).toBe(1);
+    await expect(page.getByText("요청을 처리하지 못했습니다.", { exact: false })).toBeVisible();
+    await expect(page).toHaveURL(/\/videos\/v$/);
+    await expect(page.getByRole("textbox", { name: "피드백 내용", exact: true })).toHaveValue(draft);
+    if (draft) {
+      await page.getByRole("link", { name: "원래 회차로 돌아가기" }).click();
+      await expect(page.getByRole("dialog", { name: "저장하지 않은 내용을 버릴까요?" })).toBeVisible();
+      await page.getByRole("button", { name: "계속 작성", exact: true }).click();
+    }
+    failDelete = false;
+    await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "확인", exact: true }).click();
+    await expect(page).toHaveURL(/\/occurrences\/occ$/);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(deletes).toBe(2);
+  });
+}
