@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./demo-fixture";
 import { login, recommend } from "./helpers";
 
 async function audit(page: Page, label: string) {
