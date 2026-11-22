@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./demo-fixture";
 import { login, recommend } from "./helpers";
 
 test("관리자가 추천을 확정하고 로컬 영상을 재생한 뒤 피드백을 새로고침으로 복원한다", async ({ page }) => {

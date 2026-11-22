@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./demo-fixture";
 import { login } from "./helpers";
 
 async function expectNoOverflow(page: Page) {

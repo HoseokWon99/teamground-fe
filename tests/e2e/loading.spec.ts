@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./demo-fixture";
 import { login } from "./helpers";
 
 test("로그인 초기 전송은 작업공간·서비스·추천·데모 도구를 제외한다", async ({ page }) => {
