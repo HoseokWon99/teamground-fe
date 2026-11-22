@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useUnsavedChanges } from "@/app/unsaved-changes";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -172,35 +173,12 @@ const teamSchema = z.object({
 export function CreateTeamPage() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
-  const [cancelOpen, setCancelOpen] = useState(false);
   const form = useForm<z.infer<typeof teamSchema>>({
     resolver: zodResolver(teamSchema),
     defaultValues: { name: "", description: "" },
   });
   const { isDirty, isSubmitting, errors } = form.formState;
-  useEffect(() => {
-    if (!isDirty || isSubmitting) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    const confirmLink = (event: MouseEvent) => {
-      const link = (event.target as HTMLElement).closest("a[href]");
-      if (
-        link &&
-        !window.confirm("작성 중인 팀 정보가 저장되지 않았습니다. 나갈까요?")
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("click", confirmLink, true);
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("click", confirmLink, true);
-    };
-  }, [isDirty, isSubmitting]);
+  const markSaved = useUnsavedChanges(isDirty, isSubmitting);
   const submit = form.handleSubmit(async (values) => {
     setError("");
     try {
@@ -209,6 +187,7 @@ export function CreateTeamPage() {
         values.description.trim(),
       );
       form.reset();
+      markSaved();
       navigate(`/teams/${team.id}`, { state: { created: true } });
     } catch (e) {
       setError(errorMessage(e));
@@ -230,6 +209,7 @@ export function CreateTeamPage() {
             placeholder="예: 파동 극단"
             aria-invalid={!!errors.name}
             aria-describedby={errors.name ? "team-name-error" : undefined}
+            disabled={isSubmitting}
             {...form.register("name")}
           />
           {errors.name && (
@@ -245,6 +225,7 @@ export function CreateTeamPage() {
             rows={4}
             placeholder="우리 팀이 만들어갈 이야기를 소개해주세요."
             aria-invalid={!!errors.description}
+            disabled={isSubmitting}
             {...form.register("description")}
           />
           {errors.description && (
@@ -260,7 +241,7 @@ export function CreateTeamPage() {
             type="button"
             variant="outline"
             disabled={isSubmitting}
-            onClick={() => (isDirty ? setCancelOpen(true) : navigate("/teams"))}
+            onClick={() => navigate("/teams")}
           >
             취소
           </Button>
@@ -270,19 +251,6 @@ export function CreateTeamPage() {
           </Button>
         </div>
       </form>
-      <Modal
-        open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        title="팀 만들기를 나갈까요?"
-        description="입력한 팀 정보는 저장되지 않습니다."
-      >
-        <div className="row">
-          <Button variant="outline" onClick={() => setCancelOpen(false)}>
-            계속 작성
-          </Button>
-          <Button onClick={() => navigate("/teams")}>나가기</Button>
-        </div>
-      </Modal>
     </div>
   );
 }

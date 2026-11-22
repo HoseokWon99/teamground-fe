@@ -1,5 +1,6 @@
+import { useUnsavedActions, useUnsavedChanges } from "@/app/unsaved-changes";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -57,6 +58,7 @@ function VideoFormModal({
     defaultValues: { title: initial?.title || "", url: initial?.url || "" },
   });
   const { isDirty, isSubmitting } = form.formState;
+  useUnsavedChanges(isDirty, isSubmitting);
   function requestClose() {
     if (submitting.current) return;
     if (!isDirty || confirm("작성 중인 내용을 버릴까요?")) onClose();
@@ -85,7 +87,9 @@ function VideoFormModal({
                 await onSave(v.title, v.url);
                 onClose();
               } catch (e) {
-                setError(e instanceof Error ? e.message : "저장하지 못했습니다.");
+                setError(
+                  e instanceof Error ? e.message : "저장하지 못했습니다.",
+                );
               }
             })(event);
           } finally {
@@ -151,11 +155,7 @@ function VideoFormModal({
             취소
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting
-              ? "저장 중…"
-              : initial
-                ? "변경 저장"
-                : "영상 추가"}
+            {isSubmitting ? "저장 중…" : initial ? "변경 저장" : "영상 추가"}
           </Button>
         </div>
       </form>
@@ -372,17 +372,27 @@ const commentSchema = z.object({
 export function VideoPage() {
   const { teamId, occurrenceId, videoId } = useParams();
   const state = useAppStore();
-  const navigate = useNavigate();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [editVideo, setEditVideo] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
+  const [editBaseline, setEditBaseline] = useState("");
+  const { confirmDiscard, runAfterDiscard } = useUnsavedActions();
   const [failed, setFailed] = useState(false);
   const form = useForm<z.infer<typeof commentSchema>>({
     resolver: zodResolver(commentSchema),
     defaultValues: { body: "" },
   });
+  const editDirty = editing !== null && editBody !== editBaseline;
+  useUnsavedChanges(form.formState.isDirty, form.formState.isSubmitting);
+  useUnsavedChanges(editDirty, busy && editing !== null);
+  async function changeEditing(id: string | null, body = "") {
+    if (!(await confirmDiscard(editDirty, busy))) return;
+    setEditing(id);
+    setEditBody(body);
+    setEditBaseline(body);
+  }
   const load = useLoad();
   const occurrence = state.occurrences.find(
     (o) => o.id === occurrenceId && o.teamId === teamId,
@@ -453,10 +463,12 @@ export function VideoPage() {
                       "영상과 연결된 피드백이 함께 삭제됩니다. 삭제할까요?",
                     )
                   )
-                    void action(async () => {
-                      await service.deleteVideo(video.id);
-                      navigate(back);
-                    });
+                    void action(() =>
+                      runAfterDiscard(
+                        () => service.deleteVideo(video.id),
+                        back,
+                      ),
+                    );
                 }}
               >
                 <Trash2 size={14} />
@@ -540,9 +552,9 @@ export function VideoPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          disabled={busy}
                           onClick={() => {
-                            setEditing(c.id);
-                            setEditBody(c.body);
+                            void changeEditing(c.id, c.body);
                           }}
                         >
                           수정
@@ -553,7 +565,17 @@ export function VideoPage() {
                           disabled={busy}
                           onClick={() => {
                             if (confirm("피드백을 삭제할까요?"))
-                              void action(() => service.deleteFeedback(c.id));
+                              void (async () => {
+                                if (
+                                  editing === c.id &&
+                                  !(await confirmDiscard(editDirty, busy))
+                                )
+                                  return;
+                                await action(async () => {
+                                  await service.deleteFeedback(c.id);
+                                  if (editing === c.id) setEditing(null);
+                                });
+                              })();
                           }}
                         >
                           삭제
@@ -565,6 +587,7 @@ export function VideoPage() {
                     <div className="stack">
                       <textarea
                         aria-label="피드백 수정"
+                        disabled={busy}
                         className="textarea"
                         value={editBody}
                         maxLength={2000}
@@ -584,7 +607,10 @@ export function VideoPage() {
                         </Button>
                         <Button
                           variant="ghost"
-                          onClick={() => setEditing(null)}
+                          disabled={busy}
+                          onClick={() => {
+                            void changeEditing(null);
+                          }}
                         >
                           취소
                         </Button>
@@ -620,6 +646,7 @@ export function VideoPage() {
               <label htmlFor="feedback-body">이 영상에 대한 피드백</label>
               <textarea
                 id="feedback-body"
+                disabled={form.formState.isSubmitting}
                 className="textarea"
                 placeholder="함께 나누고 싶은 생각을 남겨주세요."
                 {...form.register("body")}
