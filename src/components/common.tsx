@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AlertCircle, Layers3 } from "lucide-react";
 import type { User } from "@/lib/types";
+import { avatarColors } from "@/lib/avatar-colors";
 export function PageHeader({
   eyebrow,
   title,
@@ -56,7 +57,7 @@ export function Avatar({ user, size = 34 }: { user?: User; size?: number }) {
       style={{
         width: size,
         height: size,
-        background: user?.color || "#dde9df",
+        ...avatarColors(user?.color),
         fontSize: size * 0.35,
       }}
       title={user?.name}

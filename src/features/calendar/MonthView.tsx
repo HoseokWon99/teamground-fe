@@ -103,12 +103,12 @@ export function MonthView({
               borderTop: "1px solid var(--border, #e4e7df)",
               borderRight: "1px solid var(--border, #e4e7df)",
               padding: 5,
-              opacity: isSameMonth(day, month) ? 1 : 0.4,
+              background: isSameMonth(day, month) ? undefined : "#f4f6ef",
               minWidth: 0,
             }}
           >
             <span className="muted" style={{ fontSize: 12 }}>
-              {format(day, "d")}
+              {format(day, isSameMonth(day, month) ? "d" : "M/d")}
             </span>
             {items
               .filter(
@@ -117,6 +117,7 @@ export function MonthView({
               .map((item) => (
                 <button
                   key={item.id}
+                  aria-label={`${format(day, "yyyy년 M월 d일")} ${item.start.slice(11, 16)} ${item.title}${item.detail ? ` · ${item.detail}` : ""}`}
                   onClick={() => onSelect(item.id)}
                   style={{
                     display: "block",

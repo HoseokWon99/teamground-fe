@@ -313,7 +313,7 @@ export function OccurrencePage() {
             )}
           </div>
         </section>
-        <aside className="card stack" style={{ alignSelf: "start" }}>
+        <aside aria-label="이번 연습 정보" className="card stack" style={{ alignSelf: "start" }}>
           <h3>이번 연습</h3>
           <div className="meta">
             <CalendarDays size={16} />

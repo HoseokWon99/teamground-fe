@@ -496,6 +496,11 @@ export function MembersPage() {
       <Modal
         open={open}
         closeDisabled={inviting}
+        onOpenAutoFocus={(event) => {
+          // Focus after Radix installs its trap, rather than React's earlier autoFocus.
+          event.preventDefault();
+          form.setFocus("email");
+        }}
         onOpenChange={(next) => {
           if (form.formState.isSubmitting) return;
           if (
@@ -517,7 +522,6 @@ export function MembersPage() {
           <label className="field">
             초대할 이메일
             <input
-              autoFocus
               className="input"
               type="email"
               disabled={inviting}

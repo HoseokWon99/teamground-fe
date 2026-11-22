@@ -6,6 +6,7 @@ export function Modal({
   id,
   closeDisabled = false,
   onOpenChange,
+  onOpenAutoFocus,
   title,
   description,
   children,
@@ -14,6 +15,7 @@ export function Modal({
   id?: string;
   closeDisabled?: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenAutoFocus?: (event: Event) => void;
   title: string;
   description?: string;
   children: ReactNode;
@@ -36,6 +38,7 @@ export function Modal({
           id={id}
           className="modal-content"
           aria-describedby={description ? descriptionId : undefined}
+          onOpenAutoFocus={onOpenAutoFocus}
           onCloseAutoFocus={(event) => {
             if (previousFocus.current?.isConnected) {
               event.preventDefault();
