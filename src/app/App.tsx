@@ -1,7 +1,8 @@
 import { Component, Suspense, lazy, type ReactNode, useState } from "react";
 import {
-  BrowserRouter,
-  Routes,
+  createBrowserRouter,
+  createRoutesFromElements,
+  RouterProvider,
   Route,
   Navigate,
   Outlet,
@@ -26,6 +27,7 @@ import { useAppStore, storageWarning } from "@/stores/app-store";
 import { service } from "@/mocks/service";
 import { Button } from "@/components/ui/button";
 import { Avatar, EmptyState, ErrorNotice } from "@/components/common";
+import { UnsavedChangesProvider, useUnsavedActions } from "./unsaved-changes";
 const LoginPage = lazy(() =>
   import("@/features/auth/pages").then((m) => ({ default: m.LoginPage })),
 );
@@ -103,6 +105,7 @@ function TeamGuard() {
   );
 }
 function DemoTools() {
+  const { runAfterDiscard } = useUnsavedActions();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
@@ -137,10 +140,7 @@ function DemoTools() {
                 "팀, 일정, 댓글을 발표 기본 상태로 초기화합니다. 계속할까요?",
               )
             )
-              void run(async () => {
-                await service.reset();
-                navigate("/login");
-              });
+              void run(() => runAfterDiscard(() => service.reset(), "/login"));
           }}
         >
           <RotateCcw size={13} />
@@ -188,6 +188,7 @@ function DemoTools() {
   );
 }
 function Layout() {
+  const { runAfterDiscard } = useUnsavedActions();
   const state = useAppStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -261,8 +262,7 @@ function Layout() {
             size="sm"
             onClick={async () => {
               try {
-                await service.logout();
-                navigate("/login");
+                await runAfterDiscard(() => service.logout(), "/login");
               } catch (e) {
                 setError(String(e));
               }
@@ -349,55 +349,58 @@ class ErrorBoundary extends Component<
     );
   }
 }
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<UnsavedChangesProvider />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/invite/:token" element={<InvitePage />} />
+      <Route element={<AuthGuard />}>
+        <Route element={<Layout />}>
+          <Route path="/teams" element={<TeamListPage />} />
+          <Route path="/teams/new" element={<CreateTeamPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/teams/:teamId" element={<TeamGuard />}>
+            <Route index element={<TeamHomePage />} />
+            <Route path="members" element={<MembersPage />} />
+            <Route path="scheduling" element={<SchedulingPage />} />
+            <Route path="scheduling/results" element={<ResultsPage />} />
+            <Route
+              path="occurrences/:occurrenceId"
+              element={<OccurrencePage />}
+            />
+            <Route
+              path="occurrences/:occurrenceId/videos/:videoId"
+              element={<VideoPage />}
+            />
+          </Route>
+          <Route
+            path="*"
+            element={
+              <EmptyState
+                title="페이지를 찾을 수 없습니다"
+                action={
+                  <Button asChild>
+                    <Link to="/teams">
+                      팀으로 돌아가기
+                      <ArrowUpRight size={16} />
+                    </Link>
+                  </Button>
+                }
+              />
+            }
+          />
+        </Route>
+      </Route>
+      <Route path="/" element={<Navigate to="/teams" replace />} />
+    </Route>,
+  ),
+);
 export function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <Suspense fallback={<div className="loading">화면을 준비하는 중…</div>}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/invite/:token" element={<InvitePage />} />
-            <Route element={<AuthGuard />}>
-              <Route element={<Layout />}>
-                <Route path="/teams" element={<TeamListPage />} />
-                <Route path="/teams/new" element={<CreateTeamPage />} />
-                <Route path="/calendar" element={<CalendarPage />} />
-                <Route path="/teams/:teamId" element={<TeamGuard />}>
-                  <Route index element={<TeamHomePage />} />
-                  <Route path="members" element={<MembersPage />} />
-                  <Route path="scheduling" element={<SchedulingPage />} />
-                  <Route path="scheduling/results" element={<ResultsPage />} />
-                  <Route
-                    path="occurrences/:occurrenceId"
-                    element={<OccurrencePage />}
-                  />
-                  <Route
-                    path="occurrences/:occurrenceId/videos/:videoId"
-                    element={<VideoPage />}
-                  />
-                </Route>
-                <Route
-                  path="*"
-                  element={
-                    <EmptyState
-                      title="페이지를 찾을 수 없습니다"
-                      action={
-                        <Button asChild>
-                          <Link to="/teams">
-                            팀으로 돌아가기
-                            <ArrowUpRight size={16} />
-                          </Link>
-                        </Button>
-                      }
-                    />
-                  }
-                />
-              </Route>
-            </Route>
-            <Route path="/" element={<Navigate to="/teams" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+      <Suspense fallback={<div className="loading">화면을 준비하는 중…</div>}>
+        <RouterProvider router={router} />
+      </Suspense>
     </ErrorBoundary>
   );
 }

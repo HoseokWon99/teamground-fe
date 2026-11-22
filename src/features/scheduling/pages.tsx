@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from "@/app/unsaved-changes";
 import { useState } from "react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useNavigate, useParams, Link } from "react-router-dom";
@@ -87,6 +88,7 @@ export function SchedulingPage() {
       requiredIds: [],
     },
   });
+  const markSaved = useUnsavedChanges(form.formState.isDirty, busy);
   const values = form.watch();
   const members = state.memberships.filter((m) => m.teamId === teamId);
   const missing = members.filter(
@@ -102,7 +104,9 @@ export function SchedulingPage() {
     setError("");
     try {
       await service.saveDraft(draft);
+      form.reset(draft);
       await service.recommend(draft);
+      markSaved();
       navigate(`/teams/${teamId}/scheduling/results`);
     } catch (e) {
       setError((e as Error).message);
@@ -112,17 +116,7 @@ export function SchedulingPage() {
   });
   return (
     <div className="stack">
-      <Link
-        className="muted"
-        to={`/teams/${teamId}`}
-        onClick={(e) => {
-          if (
-            form.formState.isDirty &&
-            !window.confirm("아직 저장하지 않은 조율 조건을 버릴까요?")
-          )
-            e.preventDefault();
-        }}
-      >
+      <Link className="muted" to={`/teams/${teamId}`}>
         ← 팀 일정
       </Link>
       <PageHeader
@@ -132,7 +126,10 @@ export function SchedulingPage() {
         action={
           <Button
             variant="outline"
-            onClick={() => form.reset(exampleDraft(teamId))}
+            disabled={busy}
+            onClick={() =>
+              form.reset(exampleDraft(teamId), { keepDefaultValues: true })
+            }
           >
             <Sparkles size={16} />
             발표 예시 채우기
@@ -156,171 +153,183 @@ export function SchedulingPage() {
         </div>
       )}
       <form className="stack" onSubmit={submit}>
-        <section className="card stack">
-          <span className="badge">01 · 모임 설정</span>
-          <label className="field">
-            일정 제목
-            <input
-              className="input"
-              placeholder="예: 장면 리허설"
-              {...form.register("title")}
-            />
-            <span className="field-error">{err("title")}</span>
-          </label>
-          <div className="page-grid">
-            <label className="field">
-              반복 주기
-              <select className="select" aria-label="반복 주기">
-                <option>매주</option>
-              </select>
-            </label>
-            <label className="field">
-              모임 길이
-              <select
-                className="select"
-                {...form.register("duration", { valueAsNumber: true })}
-              >
-                {[30, 60, 90, 120, 150, 180, 210, 240].map((n) => (
-                  <option value={n} key={n}>
-                    {n % 60 === 0 ? `${n / 60}시간` : `${n}분`}
-                  </option>
-                ))}
-              </select>
-              <span className="field-error">{err("duration")}</span>
-            </label>
-          </div>
-        </section>
-        <section className="card stack">
-          <span className="badge">02 · 가능한 날짜와 시간</span>
-          <div className="page-grid">
-            <label className="field">
-              시작일
-              <input className="input" type="date" {...form.register("from")} />
-              <span className="field-error">{err("from")}</span>
-            </label>
-            <label className="field">
-              종료일
-              <input className="input" type="date" {...form.register("to")} />
-              <span className="field-error">{err("to")}</span>
-            </label>
-          </div>
-          <div className="field">
-            탐색 요일
-            <div className="row" style={{ flexWrap: "wrap" }}>
-              {[1, 2, 3, 4, 5, 6, 0].map((day) => (
-                <label
-                  key={day}
-                  className="badge"
-                  style={{
-                    padding: "10px 14px",
-                    background: values.weekdays.includes(day)
-                      ? "#dfeada"
-                      : undefined,
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={values.weekdays.includes(day)}
-                    onChange={(e) =>
-                      form.setValue(
-                        "weekdays",
-                        e.target.checked
-                          ? [...values.weekdays, day]
-                          : values.weekdays.filter((d) => d !== day),
-                        { shouldValidate: true, shouldDirty: true },
-                      )
-                    }
-                  />
-                  {weekdays[day]}
-                </label>
-              ))}
-            </div>
-            <span className="field-error">{err("weekdays")}</span>
-          </div>
-          <div className="page-grid">
-            <label className="field">
-              시작 시간
-              <input
-                className="input"
-                type="time"
-                step="1800"
-                {...form.register("startTime")}
-              />
-              <span className="field-error">{err("startTime")}</span>
-            </label>
-            <label className="field">
-              종료 시간
-              <input
-                className="input"
-                type="time"
-                step="1800"
-                {...form.register("endTime")}
-              />
-              <span className="field-error">{err("endTime")}</span>
-            </label>
-          </div>
-          <p className="muted">
-            모든 시간은 대한민국 표준시(Asia/Seoul)를 기준으로 합니다.
-          </p>
-        </section>
-        <section className="card stack">
-          <span className="badge">03 · 함께해야 하는 멤버</span>
-          <label className="row">
-            <input type="radio" value="all" {...form.register("mode")} />
-            <span>
-              <b>전원 참석 가능</b>
-              <br />
-              <small className="muted">
-                모든 멤버가 모든 회차에 가능한 시간을 찾아요.
-              </small>
-            </span>
-          </label>
-          <label className="row">
-            <input type="radio" value="required" {...form.register("mode")} />
-            <span>
-              <b>필수 멤버 지정</b>
-              <br />
-              <small className="muted">
-                선택한 멤버의 모든 회차 참석 가능 여부를 확인해요.
-              </small>
-            </span>
-          </label>
-          {values.mode === "required" && (
-            <div className="row" style={{ flexWrap: "wrap" }}>
-              {members.map((m) => (
-                <label className="badge" key={m.userId}>
-                  <input
-                    type="checkbox"
-                    checked={values.requiredIds.includes(m.userId)}
-                    onChange={(e) =>
-                      form.setValue(
-                        "requiredIds",
-                        e.target.checked
-                          ? [...values.requiredIds, m.userId]
-                          : values.requiredIds.filter((id) => id !== m.userId),
-                        { shouldValidate: true, shouldDirty: true },
-                      )
-                    }
-                  />
-                  {state.users.find((u) => u.id === m.userId)?.name}
-                </label>
-              ))}
-            </div>
-          )}
-          <span className="field-error">{err("requiredIds")}</span>
-        </section>
-        {error && <ErrorNotice message={error} />}
-        <div
-          className="row"
-          style={{ justifyContent: "space-between", flexWrap: "wrap" }}
+        <fieldset
+          disabled={busy}
+          className="stack"
+          style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
         >
-          <p className="muted">확정 전까지 팀 일정은 변경되지 않습니다.</p>
-          <Button type="submit" disabled={busy}>
-            {busy ? "가능한 시간 찾는 중…" : "추천 시간 찾기"}
-            <ArrowRight size={16} />
-          </Button>
-        </div>
+          <section className="card stack">
+            <span className="badge">01 · 모임 설정</span>
+            <label className="field">
+              일정 제목
+              <input
+                className="input"
+                placeholder="예: 장면 리허설"
+                {...form.register("title")}
+              />
+              <span className="field-error">{err("title")}</span>
+            </label>
+            <div className="page-grid">
+              <label className="field">
+                반복 주기
+                <select className="select" aria-label="반복 주기">
+                  <option>매주</option>
+                </select>
+              </label>
+              <label className="field">
+                모임 길이
+                <select
+                  className="select"
+                  {...form.register("duration", { valueAsNumber: true })}
+                >
+                  {[30, 60, 90, 120, 150, 180, 210, 240].map((n) => (
+                    <option value={n} key={n}>
+                      {n % 60 === 0 ? `${n / 60}시간` : `${n}분`}
+                    </option>
+                  ))}
+                </select>
+                <span className="field-error">{err("duration")}</span>
+              </label>
+            </div>
+          </section>
+          <section className="card stack">
+            <span className="badge">02 · 가능한 날짜와 시간</span>
+            <div className="page-grid">
+              <label className="field">
+                시작일
+                <input
+                  className="input"
+                  type="date"
+                  {...form.register("from")}
+                />
+                <span className="field-error">{err("from")}</span>
+              </label>
+              <label className="field">
+                종료일
+                <input className="input" type="date" {...form.register("to")} />
+                <span className="field-error">{err("to")}</span>
+              </label>
+            </div>
+            <div className="field">
+              탐색 요일
+              <div className="row" style={{ flexWrap: "wrap" }}>
+                {[1, 2, 3, 4, 5, 6, 0].map((day) => (
+                  <label
+                    key={day}
+                    className="badge"
+                    style={{
+                      padding: "10px 14px",
+                      background: values.weekdays.includes(day)
+                        ? "#dfeada"
+                        : undefined,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={values.weekdays.includes(day)}
+                      onChange={(e) =>
+                        form.setValue(
+                          "weekdays",
+                          e.target.checked
+                            ? [...values.weekdays, day]
+                            : values.weekdays.filter((d) => d !== day),
+                          { shouldValidate: true, shouldDirty: true },
+                        )
+                      }
+                    />
+                    {weekdays[day]}
+                  </label>
+                ))}
+              </div>
+              <span className="field-error">{err("weekdays")}</span>
+            </div>
+            <div className="page-grid">
+              <label className="field">
+                시작 시간
+                <input
+                  className="input"
+                  type="time"
+                  step="1800"
+                  {...form.register("startTime")}
+                />
+                <span className="field-error">{err("startTime")}</span>
+              </label>
+              <label className="field">
+                종료 시간
+                <input
+                  className="input"
+                  type="time"
+                  step="1800"
+                  {...form.register("endTime")}
+                />
+                <span className="field-error">{err("endTime")}</span>
+              </label>
+            </div>
+            <p className="muted">
+              모든 시간은 대한민국 표준시(Asia/Seoul)를 기준으로 합니다.
+            </p>
+          </section>
+          <section className="card stack">
+            <span className="badge">03 · 함께해야 하는 멤버</span>
+            <label className="row">
+              <input type="radio" value="all" {...form.register("mode")} />
+              <span>
+                <b>전원 참석 가능</b>
+                <br />
+                <small className="muted">
+                  모든 멤버가 모든 회차에 가능한 시간을 찾아요.
+                </small>
+              </span>
+            </label>
+            <label className="row">
+              <input type="radio" value="required" {...form.register("mode")} />
+              <span>
+                <b>필수 멤버 지정</b>
+                <br />
+                <small className="muted">
+                  선택한 멤버의 모든 회차 참석 가능 여부를 확인해요.
+                </small>
+              </span>
+            </label>
+            {values.mode === "required" && (
+              <div className="row" style={{ flexWrap: "wrap" }}>
+                {members.map((m) => (
+                  <label className="badge" key={m.userId}>
+                    <input
+                      type="checkbox"
+                      checked={values.requiredIds.includes(m.userId)}
+                      onChange={(e) =>
+                        form.setValue(
+                          "requiredIds",
+                          e.target.checked
+                            ? [...values.requiredIds, m.userId]
+                            : values.requiredIds.filter(
+                                (id) => id !== m.userId,
+                              ),
+                          { shouldValidate: true, shouldDirty: true },
+                        )
+                      }
+                    />
+                    {state.users.find((u) => u.id === m.userId)?.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <span className="field-error">{err("requiredIds")}</span>
+          </section>
+          {error && <ErrorNotice message={error} />}
+          <div
+            className="row"
+            style={{ justifyContent: "space-between", flexWrap: "wrap" }}
+          >
+            <p className="muted">확정 전까지 팀 일정은 변경되지 않습니다.</p>
+            <Button type="submit" disabled={busy}>
+              {busy ? "가능한 시간 찾는 중…" : "추천 시간 찾기"}
+              <ArrowRight size={16} />
+            </Button>
+          </div>
+        </fieldset>
       </form>
     </div>
   );
