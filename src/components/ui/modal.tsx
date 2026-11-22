@@ -3,12 +3,16 @@ import { X } from "lucide-react";
 import { useId, useRef, type ReactNode } from "react";
 export function Modal({
   open,
+  id,
+  closeDisabled = false,
   onOpenChange,
   title,
   description,
   children,
 }: {
   open: boolean;
+  id?: string;
+  closeDisabled?: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
@@ -29,6 +33,7 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
         <Dialog.Content
+          id={id}
           className="modal-content"
           aria-describedby={description ? descriptionId : undefined}
           onCloseAutoFocus={(event) => {
@@ -44,7 +49,11 @@ export function Modal({
               {description}
             </Dialog.Description>
           )}
-          <Dialog.Close className="modal-close" aria-label="닫기">
+          <Dialog.Close
+            className="modal-close"
+            aria-label="닫기"
+            disabled={closeDisabled}
+          >
             <X size={20} />
           </Dialog.Close>
           <div className="modal-body">{children}</div>

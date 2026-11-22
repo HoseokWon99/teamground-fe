@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useUnsavedChanges } from "@/app/unsaved-changes";
+import { useEffect, useRef, useState } from "react";
 import { addDays, format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,9 +36,13 @@ export function CalendarPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState(status?.from || "2026-10-14");
   const [to, setTo] = useState(status?.to || "2026-11-06");
+  const [savedRange, setSavedRange] = useState({ from, to });
+  const rangeDirty = from !== savedRange.from || to !== savedRange.to;
+  const markRangeSaved = useUnsavedChanges(rangeDirty, busy);
   const [syncOpen, setSyncOpen] = useState(false);
   const form = useForm<EventForm>({
     resolver: zodResolver(schema),
@@ -48,9 +53,14 @@ export function CalendarPage() {
       allDay: false,
     },
   });
+  const { isDirty, isSubmitting } = form.formState;
   const allDay = form.watch("allDay");
   const edited = events.find((e) => e.id === editId);
   const readonly = edited?.source === "google";
+  const markEventSaved = useUnsavedChanges(
+    open && !readonly && isDirty,
+    open && (busy || isSubmitting),
+  );
   const load = () => {
     setLoading(true);
     setError("");
@@ -61,6 +71,8 @@ export function CalendarPage() {
   };
   useEffect(load, [userId]);
   const run = async (task: () => Promise<unknown>, message: string) => {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError("");
     try {
@@ -69,6 +81,7 @@ export function CalendarPage() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
@@ -100,11 +113,15 @@ export function CalendarPage() {
     setOpen(true);
   };
   const close = () => {
+    if (busy || isSubmitting) return;
     if (
       !form.formState.isDirty ||
       window.confirm("저장하지 않은 일정 입력을 버릴까요?")
-    )
+    ) {
+      form.reset();
+      markEventSaved();
       setOpen(false);
+    }
   };
   return (
     <div className="stack">
@@ -113,7 +130,7 @@ export function CalendarPage() {
         title="내 일정"
         description="바쁜 시간을 기록하면, 함께할 수 있는 시간이 보입니다."
         action={
-          <Button onClick={() => edit()}>
+          <Button disabled={busy} onClick={() => edit()}>
             <Plus size={16} />
             일정 추가
           </Button>
@@ -144,6 +161,7 @@ export function CalendarPage() {
               <input
                 className="input"
                 type="date"
+                disabled={busy}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
               />
@@ -153,22 +171,24 @@ export function CalendarPage() {
               <input
                 className="input"
                 type="date"
+                disabled={busy}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
               />
             </label>
           </div>
           <span className="badge">
-            {status?.confirmed ? "입력 완료" : "입력 확인 필요"}
+            {status?.confirmed && !rangeDirty ? "입력 완료" : "입력 확인 필요"}
           </span>
           <Button
             variant="outline"
             disabled={busy || !from || to < from}
             onClick={() =>
-              run(
-                () => service.confirmCalendar(from, to),
-                "확인 기간의 일정 입력을 완료했습니다.",
-              )
+              run(async () => {
+                await service.confirmCalendar(from, to);
+                setSavedRange({ from, to });
+                markRangeSaved();
+              }, "확인 기간의 일정 입력을 완료했습니다.")
             }
           >
             {busy ? "저장 중…" : "입력 완료 표시"}
@@ -290,6 +310,7 @@ export function CalendarPage() {
       )}
       <Modal
         open={open}
+        closeDisabled={busy || isSubmitting}
         onOpenChange={(value) => {
           if (!value) close();
         }}
@@ -300,6 +321,7 @@ export function CalendarPage() {
       >
         <form
           className="stack"
+          noValidate
           onSubmit={form.handleSubmit(async (values) => {
             await run(async () => {
               await service.saveEvent({
@@ -320,6 +342,8 @@ export function CalendarPage() {
                 allDay: values.allDay,
                 source: "manual",
               });
+              form.reset(values);
+              markEventSaved();
               setOpen(false);
             }, "일정을 저장했습니다. 입력 완료를 다시 확인해 주세요.");
           })}
@@ -328,17 +352,21 @@ export function CalendarPage() {
             제목
             <input
               className="input"
-              disabled={readonly}
+              disabled={readonly || busy || isSubmitting}
+              aria-invalid={!!form.formState.errors.title}
+              aria-describedby={
+                form.formState.errors.title ? "event-title-error" : undefined
+              }
               {...form.register("title")}
             />
-            <span className="field-error">
+            <span id="event-title-error" className="field-error">
               {form.formState.errors.title?.message}
             </span>
           </label>
           <label className="row">
             <input
               type="checkbox"
-              disabled={readonly}
+              disabled={readonly || busy || isSubmitting}
               {...form.register("allDay", {
                 onChange: (e) => {
                   const enabled = e.target.checked;
@@ -364,10 +392,14 @@ export function CalendarPage() {
             <input
               className="input"
               type={allDay ? "date" : "datetime-local"}
-              disabled={readonly}
+              disabled={readonly || busy || isSubmitting}
+              aria-invalid={!!form.formState.errors.start}
+              aria-describedby={
+                form.formState.errors.start ? "event-start-error" : undefined
+              }
               {...form.register("start")}
             />
-            <span className="field-error">
+            <span id="event-start-error" className="field-error">
               {form.formState.errors.start?.message}
             </span>
           </label>
@@ -376,10 +408,14 @@ export function CalendarPage() {
             <input
               className="input"
               type={allDay ? "date" : "datetime-local"}
-              disabled={readonly}
+              disabled={readonly || busy || isSubmitting}
+              aria-invalid={!!form.formState.errors.end}
+              aria-describedby={
+                form.formState.errors.end ? "event-end-error" : undefined
+              }
               {...form.register("end")}
             />
-            <span className="field-error">
+            <span id="event-end-error" className="field-error">
               {form.formState.errors.end?.message}
             </span>
           </label>
@@ -390,7 +426,12 @@ export function CalendarPage() {
                 {busy ? "저장 중…" : "저장"}
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={close}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || isSubmitting}
+              onClick={close}
+            >
               닫기
             </Button>
             {editId && !readonly && (
@@ -402,6 +443,8 @@ export function CalendarPage() {
                   if (window.confirm("이 개인 일정을 삭제할까요?"))
                     void run(async () => {
                       await service.deleteEvent(editId);
+                      form.reset();
+                      markEventSaved();
                       setOpen(false);
                     }, "일정을 삭제했습니다. 입력 완료를 다시 확인해 주세요.");
                 }}
@@ -414,7 +457,10 @@ export function CalendarPage() {
       </Modal>
       <Modal
         open={syncOpen}
-        onOpenChange={setSyncOpen}
+        closeDisabled={busy}
+        onOpenChange={(next) => {
+          if (!busy) setSyncOpen(next);
+        }}
         title="샘플 캘린더 동기화"
         description="실제 OAuth 연결 없이 샘플 일정만 가져옵니다."
       >
